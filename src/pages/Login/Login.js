@@ -44,7 +44,7 @@ function Login() {
   );
 }
 
-// Isti stilovi kao u Register.js da aplikacija izgleda koherentno
+
 const containerStyle = {
   display: 'flex', flexDirection: 'column', alignItems: 'center', 
   padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#fafafa', minHeight: '100vh' 
