@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const InteractionModel = require('../models/InteractionModel');
 
-const POST_SERVICE_URL = process.env.POST_SERVICE_URL || 'http://post-service:3002';
+const POST_SERVICE_URL = process.env.POST_SERVICE_URL || 'http://post-service:3001';
 const RELATIONSHIP_SERVICE_URL = process.env.RELATIONSHIP_SERVICE_URL || 'http://follow-service:3004';
 const USER_INFO_SERVICE_URL = process.env.USER_INFO_SERVICE_URL || 'http://user-info:3013';
 
