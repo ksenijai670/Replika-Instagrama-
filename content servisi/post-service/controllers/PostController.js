@@ -7,6 +7,8 @@ const PostModel = require('../models/PostModel');
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 const maxFiles = Number(process.env.MAX_FILES || 20);
 
+const INTERACTIONS_SERVICE_URL = process.env.INTERACTIONS_SERVICE_URL || 'http://interactions-service:3002';
+
 function isAllowedMime(mime) {
   return mime && (mime.startsWith('image/') || mime.startsWith('video/'));
 }
@@ -201,7 +203,7 @@ const deletePost = async (req, res) => {
     await PostModel.deletePost(postId);
 
     const response = await fetch(
-      `${process.env.INTERACTIONS_SERVICE_URL}/interactions/by-post/${postId}`,
+      `${INTERACTIONS_SERVICE_URL}/interactions/by-post/${postId}`,
       { method: 'DELETE' }
     );
 
