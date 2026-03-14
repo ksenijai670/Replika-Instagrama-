@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-// ovo je za upozorenja za React Router v7 bezvezna
+// Gasimo upozorenja za React Router v7 da ne prljaju terminal
 beforeAll(() => {
   jest.spyOn(console, 'warn').mockImplementation((msg) => {
     if (msg.includes('React Router Future Flag Warning')) return;
@@ -11,6 +11,10 @@ beforeAll(() => {
 
 test('renderuje Instagram Replica naslov', () => {
   render(<App />);
-  const element = screen.getByText(/Instagram Replica/i);
-  expect(element).toBeInTheDocument();
+  
+  // koristimo getAllByText jer sada zbog preusmerravanja na Login imamo dva ista naslova 
+  const elements = screen.getAllByText(/Instagram Replica/i);
+  
+  // Proveravamo da li je robot nasao barem jedan (prvi u nizu)
+  expect(elements[0]).toBeInTheDocument();
 });

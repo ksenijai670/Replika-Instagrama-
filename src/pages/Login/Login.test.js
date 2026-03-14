@@ -8,7 +8,7 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockedNavigate,
 }));
 
-// laziramo fetch i alert da test ne bi pukao bez pravog pretraivaca
+// laziramo fetch i alert da test ne bi pukao bez pravog pretraivacaa
 global.fetch = jest.fn();
 window.alert = jest.fn();
 
@@ -55,7 +55,7 @@ describe('Login Komponenta', () => {
 
     fireEvent.click(submitButton);
 
-    // cekamo da asinhroni fetch prodje i da se pozove preusmeravanje 
+    // cekamo da asinhroni fetch prodje i da se pozove preusmeravanjje 
     await waitFor(() => {
       expect(mockedNavigate).toHaveBeenCalledWith('/');
     });
