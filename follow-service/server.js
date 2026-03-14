@@ -20,7 +20,7 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
-// 2. Rute za Praćenje (Follow) i Blokiranje (Block) 
+// Rute za Praćenje i Blokiranje 
 app.post('/follow', FollowController.followUser);             // Slanje zahteva
 app.put('/follow/accept', FollowController.acceptFollow);      // Prihvatanje zahteva
 app.delete('/follow/reject', FollowController.rejectFollow);   // Odbijanje zahteva
@@ -31,6 +31,8 @@ app.get('/relationship-status', FollowController.getRelationshipStatus);  //foll
 app.delete('/unfollow', FollowController.unfollowUser);       // Prekid praćenja
 app.post('/block', FollowController.blockUser);               // Blokiranje
 app.get('/stats/:userId', FollowController.getStats);         // Statistika
+app.get('/follow/following', FollowController.getFollowing);  // Lista koje pratiš
+app.get('/follow/followers', FollowController.getFollowers);  // Lista ko te prati
 
 
 app.listen(PORT, () => {

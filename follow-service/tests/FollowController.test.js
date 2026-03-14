@@ -9,7 +9,9 @@ jest.mock('../models/FollowModel', () => ({
   createBlock: jest.fn(),
   removeFollowsOnBlock: jest.fn(),
   getFollowStats: jest.fn(),
-  getFollowStatus: jest.fn()
+  getFollowStatus: jest.fn(),
+  getFollowingList: jest.fn(),    
+  getFollowersList: jest.fn(),
 }));
 
 const FollowModel = require('../models/FollowModel');
@@ -25,6 +27,7 @@ function mockRes() {
 describe('FollowController - unit tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = undefined;
   });
 
   // --------------------
@@ -53,6 +56,12 @@ describe('FollowController - unit tests', () => {
     test('403 ako postoji blok između korisnika', async () => {
       FollowModel.isBlocked.mockResolvedValue(true);
 
+      // Mock fetch jer se koristi u funkciji iznad blok provere
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { is_private: false } })
+      });
+
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -66,6 +75,11 @@ describe('FollowController - unit tests', () => {
       FollowModel.isBlocked.mockResolvedValue(false);
       FollowModel.findFollow.mockResolvedValue({ follower_id: '1', following_id: '2' });
 
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { is_private: false } })
+      });
+
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -78,17 +92,16 @@ describe('FollowController - unit tests', () => {
     test('kreira PENDING ako je profil privatan', async () => {
       FollowModel.isBlocked.mockResolvedValue(false);
       FollowModel.findFollow.mockResolvedValue(null);
-
-      const spy = jest
-        .spyOn(FollowController, 'getProfilePrivacyStatus')
-        .mockResolvedValue(true);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { is_private: true } })
+      });
 
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
       await FollowController.followUser(req, res);
 
-      expect(spy).toHaveBeenCalledWith('2', req);
       expect(FollowModel.createFollow).toHaveBeenCalledWith('1', '2', 'PENDING');
       expect(res.status).toHaveBeenCalledWith(201);
     });
@@ -96,10 +109,10 @@ describe('FollowController - unit tests', () => {
     test('kreira ACCEPTED ako je profil javan', async () => {
       FollowModel.isBlocked.mockResolvedValue(false);
       FollowModel.findFollow.mockResolvedValue(null);
-
-      const spy = jest
-        .spyOn(FollowController, 'getProfilePrivacyStatus')
-        .mockResolvedValue(false);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { is_private: false } })
+      });
 
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
@@ -108,6 +121,39 @@ describe('FollowController - unit tests', () => {
 
       expect(FollowModel.createFollow).toHaveBeenCalledWith('1', '2', 'ACCEPTED');
       expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    test('followUser -> 500 ako model baci grešku (npr. createFollow)', async () => {
+      FollowModel.isBlocked.mockResolvedValue(false);
+      FollowModel.findFollow.mockResolvedValue(null);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { is_private: false } })
+      });
+      FollowModel.createFollow.mockRejectedValue(new Error('DB fail'));
+
+      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.followUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
+
+    test('followUser -> 400 ako korisnik ne postoji', async () => {
+      FollowModel.isBlocked.mockResolvedValue(false);
+      FollowModel.findFollow.mockResolvedValue(null);
+      // fetch NOT OK (user ne postoji)
+      global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+
+      const req = { body: { following_id: '99' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.followUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Nevalidan following_id - korisnik ne postoji.' });
     });
   });
 
@@ -137,6 +183,18 @@ describe('FollowController - unit tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(404);
     });
+
+    test('acceptFollow -> 500 ako model baci grešku', async () => {
+      FollowModel.acceptPendingFollow.mockRejectedValue(new Error('DB fail'));
+
+      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.acceptFollow(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
   });
 
   // --------------------
@@ -165,6 +223,18 @@ describe('FollowController - unit tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(404);
     });
+
+    test('rejectFollow -> 500 ako model baci grešku', async () => {
+      FollowModel.rejectPendingFollow.mockRejectedValue(new Error('DB fail'));
+
+      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.rejectFollow(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
   });
 
   // --------------------
@@ -182,6 +252,16 @@ describe('FollowController - unit tests', () => {
       expect(FollowModel.getPendingRequests).toHaveBeenCalledWith('2');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ pending_requests: [{ follower_id: '5' }] });
+    });
+
+    test('getNotifications -> 500 ako model baci grešku', async () => {
+      FollowModel.getPendingRequests.mockRejectedValue(new Error('DB fail'));
+      const req = { headers: { 'x-user-id': '2' } };
+      const res = mockRes();
+      await FollowController.getNotifications(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
     });
   });
 
@@ -210,6 +290,18 @@ describe('FollowController - unit tests', () => {
       await FollowController.unfollowUser(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    test('unfollowUser -> 500 ako model baci grešku', async () => {
+      FollowModel.deleteFollow.mockRejectedValue(new Error('DB fail'));
+
+      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.unfollowUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
     });
   });
 
@@ -294,6 +386,18 @@ describe('FollowController - unit tests', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ followers: 3, following: 10 });
     });
+
+    test('getStats -> 500 ako model baci grešku', async () => {
+      FollowModel.getFollowStats.mockRejectedValue(new Error('DB fail'));
+
+      const req = { headers: { 'x-user-id': '7' } };
+      const res = mockRes();
+
+      await FollowController.getStats(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
   });
 
   // --------------------
@@ -311,6 +415,70 @@ describe('FollowController - unit tests', () => {
       expect(FollowModel.isBlocked).toHaveBeenCalledWith('1', '2');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ blocked: true });
+    });
+
+    test('getBlockStatus -> 500 ako model baci grešku', async () => {
+      FollowModel.isBlocked.mockRejectedValue(new Error('DB fail'));
+
+      const req = { query: { userB: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getBlockStatus(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
+  });
+  
+  //test za getFollowing
+  describe('getFollowing', () => {
+    test('200 vraća listu following korisnika', async () => {
+      FollowModel.getFollowingList.mockResolvedValue(['2', '3']);
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getFollowing(req, res);
+
+      expect(FollowModel.getFollowingList).toHaveBeenCalledWith('1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ following: ['2', '3'] });
+    });
+
+    test('500 na grešku modela', async () => {
+      FollowModel.getFollowingList.mockRejectedValue(new Error('DB fail'));
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getFollowing(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
+  });
+
+  //test za getFollowers
+  describe('getFollowers', () => {
+    test('200 vraća listu followers korisnika', async () => {
+      FollowModel.getFollowersList.mockResolvedValue(['2', '5']);
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getFollowers(req, res);
+
+      expect(FollowModel.getFollowersList).toHaveBeenCalledWith('1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ followers: ['2', '5'] });
+    });
+
+    test('500 na grešku modela', async () => {
+      FollowModel.getFollowersList.mockRejectedValue(new Error('DB fail'));
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getFollowers(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
     });
   });
 
@@ -330,93 +498,6 @@ describe('FollowController - unit tests', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ blocked: false, followStatus: 'ACCEPTED' });
     });
-  });
-
-  // Error grane
-  describe('FollowController - testovi za error grane', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
-    function mockRes() {
-      const res = {};
-      res.status = jest.fn().mockReturnValue(res);
-      res.json = jest.fn().mockReturnValue(res);
-      return res;
-    }
-
-    test('followUser -> 500 ako model baci grešku (npr. createFollow)', async () => {
-      FollowModel.isBlocked.mockResolvedValue(false);
-      FollowModel.findFollow.mockResolvedValue(null);
-      jest.spyOn(FollowController, 'getProfilePrivacyStatus').mockResolvedValue(false);
-      FollowModel.createFollow.mockRejectedValue(new Error('DB fail'));
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
-      const res = mockRes();
-
-      await FollowController.followUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
-
-    test('acceptFollow -> 500 ako model baci grešku', async () => {
-      FollowModel.acceptPendingFollow.mockRejectedValue(new Error('DB fail'));
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
-      const res = mockRes();
-
-      await FollowController.acceptFollow(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
-
-    test('rejectFollow -> 500 ako model baci grešku', async () => {
-      FollowModel.rejectPendingFollow.mockRejectedValue(new Error('DB fail'));
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
-      const res = mockRes();
-
-      await FollowController.rejectFollow(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
-
-    test('unfollowUser -> 500 ako model baci grešku', async () => {
-      FollowModel.deleteFollow.mockRejectedValue(new Error('DB fail'));
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
-      const res = mockRes();
-
-      await FollowController.unfollowUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
-
-    test('getStats -> 500 ako model baci grešku', async () => {
-      FollowModel.getFollowStats.mockRejectedValue(new Error('DB fail'));
-
-      const req = { headers: { 'x-user-id': '7' } };
-      const res = mockRes();
-
-      await FollowController.getStats(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
-
-    test('getNotifications -> 500 ako model baci grešku', async () => {
-      FollowModel.getPendingRequests.mockRejectedValue(new Error('DB fail'));
-      const req = { headers: { 'x-user-id': '2' } };
-      const res = mockRes();
-      await FollowController.getNotifications(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
 
     test('getRelationshipStatus -> 500 ako model baci grešku', async () => {
       FollowModel.isBlocked.mockRejectedValue(new Error('DB fail'));
@@ -425,18 +506,6 @@ describe('FollowController - unit tests', () => {
       const res = mockRes();
 
       await FollowController.getRelationshipStatus(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
-    });
-
-    test('getBlockStatus -> 500 ako model baci grešku', async () => {
-      FollowModel.isBlocked.mockRejectedValue(new Error('DB fail'));
-
-      const req = { query: { userB: '2' }, headers: { 'x-user-id': '1' } };
-      const res = mockRes();
-
-      await FollowController.getBlockStatus(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
