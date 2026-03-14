@@ -247,7 +247,27 @@ const FollowController = {
       return res.status(500).json({ error: err.message });
     }
   },
+  // Vraća listu korisnika koje userId prati (following lista)
+  async getFollowing(req, res) {
+    const userId = req.headers['x-user-id'];
+    try {
+      const following = await FollowModel.getFollowingList(userId);
+      return res.status(200).json({ following });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
 
+  // Vraća listu pratilaca korisnika (followers lista)
+  async getFollowers(req, res) {
+  const userId = req.headers['x-user-id'];
+    try {
+      const followers = await FollowModel.getFollowersList(userId);
+      return res.status(200).json({ followers });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
   // Vraća status odnosa između dva korisnika:
   // da li postoji blok i kakav je follow status
   async getRelationshipStatus(req, res) {

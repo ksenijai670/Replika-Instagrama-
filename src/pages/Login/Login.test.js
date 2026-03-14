@@ -8,7 +8,7 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockedNavigate,
 }));
 
-// laziramo fetch i alert da test ne bi pukao bez pravog pretraivaca
+// laziramo fetch i alert da test ne bi pukao bez pravog pretraivacaa
 global.fetch = jest.fn();
 window.alert = jest.fn();
 

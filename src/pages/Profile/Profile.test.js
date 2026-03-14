@@ -46,7 +46,7 @@ describe('Profile Komponenta', () => {
     expect(screen.getByRole('button', { name: /Odblokiraj/i })).toBeInTheDocument();
   });
 
-  test('otvara modal kada se klikne na dugme "Moj Profil" da uredi podatke', () => {
+  test('otvara modal kada se klikne na dugme "Moj Profil" da ureedi podatke', () => {
     render(
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Profile />

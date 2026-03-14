@@ -12,7 +12,7 @@ beforeAll(() => {
 test('renderuje Instagram Replica naslov', () => {
   render(<App />);
   
-  // koristimo getAllByText jer sada zbog preusmeravanja na Login imamo dva ista naslova 
+  // koristimo getAllByText jer sada zbog preusmerravanja na Login imamo dva ista naslova 
   const elements = screen.getAllByText(/Instagram Replica/i);
   
   // Proveravamo da li je robot nasao barem jedan (prvi u nizu)
