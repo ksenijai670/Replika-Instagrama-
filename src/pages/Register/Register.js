@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function Register() {
   const [formData, setFormData] = useState({
     name: '',
     username: '',
+    email: '', 
     password: '',
     description: '',
     profilePicture: null
   });
+
+  const navigate = useNavigate();
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -19,9 +23,47 @@ function Register() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Podaci za slanje:", formData);
+
+    // secemo "Ime i prezime" na dva dela jer backend to trazi
+    const nameParts = formData.name.trim().split(' ');
+    const firstName = nameParts[0] || ''; 
+    const lastName = nameParts.slice(1).join(' ') || '-'; // Sve posle razmaka je prezime
+
+    try {
+      const odgovor = await fetch('http://localhost:4000/api/authentication/register', { // proveriiiiii SA ALEKSOM da li se ruta zove /register ili /api/authentication/register
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // saljem po backendu :)
+        body: JSON.stringify({
+          firstName: firstName,
+          lastName: lastName,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      // U backend kodu pise res.status(201) za uspesnu reg i res.status(409) ako korisnik postoji
+      if (odgovor.status === 201) {
+        alert("Uspešna registracija! Sada se možete ulogovati.");
+        navigate('/login');
+      } else if (odgovor.status === 409) {
+        alert("Greška: Korisnik sa tim imenom ili emailom već postoji!");
+      } else if (odgovor.status === 500) {
+        alert("Server je pukao! (Verovatno fali baza ili Redis lokalno)");
+      } else {
+        // Ako je stvarno 400 Bad Request (npr fali neko polje)
+        const podaci = await odgovor.json();
+        alert(`Server kaže: ${podaci.message}`); 
+      }
+    } catch (error) {
+      alert("Server trenutno nije dostupan!");
+      console.error("Greška pri registraciji:", error);
+    }
   };
 
   return (
@@ -39,6 +81,12 @@ function Register() {
             type="text" placeholder="Korisničko ime (Obavezno)" required
             style={inputStyle} onChange={(e) => setFormData({...formData, username: e.target.value})} 
           />
+          
+          <input 
+            type="email" placeholder="Email adresa (Obavezno)" required
+            style={inputStyle} onChange={(e) => setFormData({...formData, email: e.target.value})} 
+          />
+
           <input 
             type="password" placeholder="Lozinka (Obavezno)" required
             style={inputStyle} onChange={(e) => setFormData({...formData, password: e.target.value})} 

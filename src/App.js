@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'; 
 import Timeline from './pages/Timeline/Timeline';
 import Profile from './pages/Profile/Profile';
 import Login from './pages/Login/Login';
@@ -8,6 +8,15 @@ import Navbar from './components/Navbar';
 import CreatePost from './pages/CreatePost/CreatePost';
 import Search from './pages/Search/Search';
 import Notifications from './pages/Notifications/Notifications'; 
+
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    // Ako nema tokena u Local Storage-u, vraća na Login
+    return <Navigate to="/login" />;
+  }
+  return children;
+};
 
 function App() {
   return (
@@ -19,13 +28,16 @@ function App() {
         </h1>
 
         <Routes>
-          <Route path="/" element={<Timeline />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* OVE STRANICE SU ZAKLJUČANE (DODATO ProtectedRoute) */}
+          <Route path="/" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+          <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          
+          {/* OVE STRANICE SU SLOBODNE */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/create" element={<CreatePost />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/notifications" element={<Notifications />} />
         </Routes>
       </div>
       <Navbar />
