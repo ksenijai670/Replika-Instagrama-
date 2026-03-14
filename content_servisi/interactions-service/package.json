@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "echo \"No tests yet\""
+    "test": "jest --runInBand",
+    "test:coverage": "jest --coverage --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +19,7 @@
     "node-fetch": "^2.7.0"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
     "nodemon": "^3.1.14"
   }
 }

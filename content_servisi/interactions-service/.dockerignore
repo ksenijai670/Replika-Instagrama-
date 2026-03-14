@@ -10,7 +10,9 @@ Dockerfile
 .env
 .env.*
 
+tests
 coverage
+
 dist
 build
 
