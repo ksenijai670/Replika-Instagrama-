@@ -8,11 +8,36 @@ function Login() {
   });
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log("Pokušaj prijave:", credentials);
-    // Ovde će ići backend provera. Za sada samo simuliramo prelazak na Timeline.
-    navigate('/'); 
+    
+    try {
+      // 1. Kucamo na vrata (SADA GAĐAMO PRAVI API GATEWAY NA PORTU 4000)
+      const odgovor = await fetch('http://localhost:4000/api/authentication/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // 2. Šaljemo ono što je tražio: username i password
+        body: JSON.stringify({
+          username: credentials.identifier, 
+          password: credentials.password
+        })
+      });
+
+      // 3. Da li nas je pustio unutra?
+      if (odgovor.ok) {
+        alert("Uspešna prijava!");
+        navigate('/'); // Šaljemo te na Timeline
+      } else {
+        alert("Pogrešno korisničko ime ili lozinka!");
+      }
+      
+    } catch (error) {
+      // 4. Ovo iskače ako server uopšte ne radi ili fali CORS
+      alert("Server trenutno nije dostupan ili je blokiran (CORS)!");
+      console.error("Greška pri fetch-u:", error);
+    }
   };
 
   return (
@@ -43,7 +68,6 @@ function Login() {
     </div>
   );
 }
-
 
 const containerStyle = {
   display: 'flex', flexDirection: 'column', alignItems: 'center', 
