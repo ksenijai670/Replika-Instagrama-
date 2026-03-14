@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 function Login() {
   const [credentials, setCredentials] = useState({
-    identifier: '', // Korisničko ime ili email po zahtevu 1.1.1
+    identifier: '', // Korisničko ime ili email 
     password: ''
   });
   const navigate = useNavigate();
@@ -12,13 +12,13 @@ function Login() {
     e.preventDefault();
     
     try {
-      // 1. Kucamo na vrata (SADA GAĐAMO PRAVI API GATEWAY NA PORTU 4000)
+      // 1.SADA GAĐAMO PRAVI API GATEWAY NA PORTU 4000
       const odgovor = await fetch('http://localhost:4000/api/authentication/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        // 2. Šaljemo ono što je tražio: username i password
+        // 2. sgaljemo ono što je trazio: username i password
         body: JSON.stringify({
           username: credentials.identifier, 
           password: credentials.password
@@ -27,8 +27,14 @@ function Login() {
 
       // 3. Da li nas je pustio unutra?
       if (odgovor.ok) {
+        // 1. Pretvaramo odgovor servera u podatke koje React razume
+        const podaci = await odgovor.json();
+        
+        // 2. Čuvamo token (VIP narukvicu) u memoriju pretraživača
+        localStorage.setItem('token', podaci.token);
+
         alert("Uspešna prijava!");
-        navigate('/'); // Šaljemo te na Timeline
+        navigate('/'); // prelazak na Timeline
       } else {
         alert("Pogrešno korisničko ime ili lozinka!");
       }
