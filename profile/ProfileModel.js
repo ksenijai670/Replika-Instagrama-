@@ -12,8 +12,9 @@ const pool = mysql.createPool({
 });
 
 const USER_FOLLOWS_URL = process.env.USER_FOLLOWS_URL || 'http://user-follows:3011';
+const POST_SERVICE_URL = process.env.POST_SERVICE_URL || 'http://post-service:3006';
 
-// ─── Helpers ──────────────────────────────────────────────
+// ─── Follow service helpers ───────────────────────────────
 const isBlocked = async (userA, userB) => {
   const res = await fetch(
     `${USER_FOLLOWS_URL}/blocks/check?userA=${userA}&userB=${userB}`
@@ -42,13 +43,46 @@ const getIsFollowing = async (requesterId, userId) => {
   return data.isFollowing === true;
 };
 
+const getFollowingList = async (userId) => {
+  const res = await fetch(`${USER_FOLLOWS_URL}/following/list/${userId}`);
+  const data = await res.json();
+  return data.following || [];
+};
+
+const getFollowersList = async (userId) => {
+  const res = await fetch(`${USER_FOLLOWS_URL}/followers/list/${userId}`);
+  const data = await res.json();
+  return data.followers || [];
+};
+
+// ─── Post service helpers ─────────────────────────────────
+const getPostsByUserId = async (userId) => {
+  const res = await fetch(`${POST_SERVICE_URL}/posts/user/${userId}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data || [];
+};
+
+// ─── DB helpers ───────────────────────────────────────────
+const getUsersByIds = async (ids) => {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const [rows] = await pool.execute(
+    `SELECT id, first_name, last_name, username, profile_image_url
+     FROM users
+     WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
+    ids
+  );
+  return rows;
+};
+
 // ─── Search ───────────────────────────────────────────────
 const searchUsers = async (query, requesterId) => {
   const like = `%${query}%`;
 
   const [rows] = await pool.execute(
-    `SELECT 
-       id, first_name, last_name, username, bio, profile_image_url, is_private
+    `SELECT
+       id, first_name, last_name, username, profile_image_url
      FROM users
      WHERE
        deleted_at IS NULL
@@ -58,7 +92,6 @@ const searchUsers = async (query, requesterId) => {
     [like, like, like]
   );
 
-  // Filter out blocked users via user-follows service
   const results = await Promise.all(
     rows.map(async (user) => {
       const blocked = await isBlocked(requesterId, user.id);
@@ -83,15 +116,20 @@ const getUserInfo = async (userId, requesterId) => {
 
   const user = userRows[0];
 
-  // Block check via user-follows service
   const blocked = await isBlocked(requesterId, userId);
   if (blocked) return { error: 'User not found', status: 404 };
 
-  // Social counts via user-follows service
-  const [followers_count, following_count, is_following] = await Promise.all([
+  // Sve paraleno — follow podaci i postovi
+  const [
+    followers_count,
+    following_count,
+    is_following,
+    posts,
+  ] = await Promise.all([
     getFollowersCount(userId),
     getFollowingCount(userId),
     getIsFollowing(requesterId, userId),
+    getPostsByUserId(userId),
   ]);
 
   return {
@@ -107,8 +145,36 @@ const getUserInfo = async (userId, requesterId) => {
       followers_count,
       following_count,
       is_following,
+      posts,
     }
   };
 };
 
-module.exports = { searchUsers, getUserInfo };
+// ─── Followers list ───────────────────────────────────────
+const getFollowers = async (userId, requesterId) => {
+  const blocked = await isBlocked(requesterId, userId);
+  if (blocked) return { error: 'User not found', status: 404 };
+
+  const followerIds = await getFollowersList(userId);
+  const users = await getUsersByIds(followerIds);
+
+  return { data: users };
+};
+
+// ─── Following list ───────────────────────────────────────
+const getFollowing = async (userId, requesterId) => {
+  const blocked = await isBlocked(requesterId, userId);
+  if (blocked) return { error: 'User not found', status: 404 };
+
+  const followingIds = await getFollowingList(userId);
+  const users = await getUsersByIds(followingIds);
+
+  return { data: users };
+};
+
+module.exports = {
+  searchUsers,
+  getUserInfo,
+  getFollowers,
+  getFollowing,
+};
