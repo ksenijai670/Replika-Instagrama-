@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_users_username` (`username`),
   KEY `idx_users_email`    (`email`),
   KEY `idx_users_deleted`  (`deleted_at`)
-)
+);
 
 CREATE TABLE IF NOT EXISTS `refresh_tokens` (
   `id`         bigint UNSIGNED  NOT NULL AUTO_INCREMENT,
@@ -37,4 +37,4 @@ CREATE TABLE IF NOT EXISTS `refresh_tokens` (
   CONSTRAINT `fk_refresh_user`
     FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
     ON DELETE CASCADE
-)
+);
