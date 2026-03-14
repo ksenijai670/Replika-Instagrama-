@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function Profile() {
@@ -17,11 +17,15 @@ function Profile() {
   const [odabranaObjava, setOdabranaObjava] = useState(null);
   const [trenutnaSlikaIndex, setTrenutnaSlikaIndex] = useState(0);
 
+  const [ucitavamPodatke, setUcitavamPodatke] = useState(false);
+
   const [mojProfil, setMojProfil] = useState({
     username: "ksenija_dev",
     fullName: "Ksenija",
     bio: "opis 💻✨",
-    avatar: "/slike/radnja.jfif"
+    avatar: "/slike/radnja.jfif",
+    followersCount: 0,
+    followingCount: 0
   });
 
   const [listaPratilaca, setListaPratilaca] = useState([
@@ -32,45 +36,167 @@ function Profile() {
 
   const [tempPodaci, setTempPodaci] = useState({ username: '', fullName: '', bio: '' });
 
+  // ─── POMOĆNA FUNKCIJA ZA IZVLAČENJE TVOG ID-a IZ TOKENA ───
+  const getMyUserId = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const payloadBase64 = token.split('.')[1];
+      const decodedPayload = JSON.parse(atob(payloadBase64));
+      return decodedPayload.userId;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // ─── UČITAVANJE PROFILA (ALEKSIN SERVIS) ───
+  useEffect(() => {
+    const fetchMyProfile = async () => {
+      const myUserId = getMyUserId();
+      const token = localStorage.getItem('token');
+      if (!myUserId || !token) return;
+
+      setUcitavamPodatke(true);
+      try {
+        const response = await fetch(`http://localhost:4000/api/users/${myUserId}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setMojProfil({
+            username: data.user.username || "Nepoznato",
+            fullName: data.user.fullName || "Nepoznato",
+            bio: data.user.bio || "Nema biografije",
+            avatar: data.user.avatarUrl || "/slike/radnja.jfif", 
+            followersCount: data.user.followersCount || 0,
+            followingCount: data.user.followingCount || 0
+          });
+        }
+      } catch (error) {
+        console.error("Greška pri učitavanju pravog profila:", error);
+      } finally {
+        setUcitavamPodatke(false);
+      }
+    };
+
+    if (tipProfila === 'moj' && !pretrazeniKorisnik) {
+      fetchMyProfile();
+    }
+  }, [tipProfila, pretrazeniKorisnik]);
+
+  // ─── LOGOUT ───
+  const handlePraviLogout = async () => {
+    const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
+
+    try {
+      if (token) {
+        await fetch('http://localhost:4000/api/authentication/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ refreshToken: refreshToken })
+        });
+      }
+    } catch (error) {
+      console.error("Greška pri odjavi:", error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      navigate('/login');
+    }
+  };
+
+  // ─── PRAĆENJE KORISNIKA (ANIN SERVIS) ───
+  const handleFollowClick = async () => {
+    const myId = getMyUserId();
+    // Ako pretraženi korisnik nema ID (zbog testiranja), koristimo neki lažni (npr. 2)
+    const targetId = pretrazeniKorisnik?.id || 2; 
+
+    if (!myId) {
+      console.error("Nisi ulogovana!");
+      return;
+    }
+
+    try {
+      if (statusPracenja === 'ne_prati') {
+        // Šaljemo ZAHTEV ZA PRAĆENJE (POST)
+        await fetch('http://localhost:4000/api/follow', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-user-id': String(myId) // Anin specijalni header
+          },
+          body: JSON.stringify({ following_id: targetId })
+        });
+        setStatusPracenja(tipProfila === 'privatni' ? 'poslat_zahtev' : 'prati');
+      } else {
+        // Šaljemo PREKID PRAĆENJA (DELETE)
+        await fetch('http://localhost:4000/api/unfollow', {
+          method: 'DELETE',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-user-id': String(myId) 
+          },
+          body: JSON.stringify({ following_id: targetId })
+        });
+        setStatusPracenja('ne_prati');
+      }
+    } catch (error) {
+      console.error("Greška u Aninom Follow servisu:", error);
+    }
+  };
+
+  // ─── BLOKIRANJE KORISNIKA (ANIN SERVIS) ───
+  const handleBlockClick = async () => {
+    const myId = getMyUserId();
+    const targetId = pretrazeniKorisnik?.id || 2;
+
+    if (!myId) return;
+
+    try {
+      if (!blokiran) {
+        // BLOKIRAJ KORISNIKA (POST)
+        await fetch('http://localhost:4000/api/block', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-user-id': String(myId) 
+          },
+          body: JSON.stringify({ blocked_id: targetId }) // Pretpostavljamo da Anin servis očekuje blocked_id u body-ju
+        });
+        setBlokiran(true);
+      } else {
+        // ODBLOKIRAJ (Samo vizuelno dok ne dobijemo rutu za unblock, obično DELETE /block)
+        setBlokiran(false);
+      }
+    } catch (error) {
+      console.error("Greška u Aninom Block servisu:", error);
+    }
+  };
+
   const userProfile = {
     username: pretrazeniKorisnik ? pretrazeniKorisnik.username : (tipProfila === 'moj' ? mojProfil.username : (tipProfila === 'javni' ? "ana_marija" : "neko_tajni")),
     fullName: pretrazeniKorisnik ? pretrazeniKorisnik.fullName : (tipProfila === 'moj' ? mojProfil.fullName : (tipProfila === 'javni' ? "Ana Marija" : "Neko")),
     bio: tipProfila === 'moj' ? mojProfil.bio : "Samo pozitivna energija ✨",
-    followers: pretrazeniKorisnik ? 450 : (tipProfila === 'moj' ? listaPratilaca.length : 890),
-    following: pretrazeniKorisnik ? 320 : (tipProfila === 'moj' ? 350 : 400),
+    followers: pretrazeniKorisnik ? 450 : (tipProfila === 'moj' ? mojProfil.followersCount : 890),
+    following: pretrazeniKorisnik ? 320 : (tipProfila === 'moj' ? mojProfil.followingCount : 400),
     posts: pretrazeniKorisnik ? 3 : (tipProfila === 'moj' ? 4 : 0),
     avatar: pretrazeniKorisnik ? pretrazeniKorisnik.avatar : (tipProfila === 'moj' ? mojProfil.avatar : "/slike/outfit.jpg")
   };
 
   const userPostsData = [
-    { 
-      id: 1, 
-      media: ["/slike/radnja.jfif", "/slike/slikaa.jpg"] 
-    },
-    { 
-      id: 2, 
-      media: ["/slike/outfit.jpg"] 
-    },
-    { 
-      id: 3, 
-      media: ["/slike/macka.jfif"] 
-    }
+    { id: 1, media: ["/slike/radnja.jfif", "/slike/slikaa.jpg"] },
+    { id: 2, media: ["/slike/outfit.jpg"] },
+    { id: 3, media: ["/slike/macka.jfif"] }
   ];
 
   const ukloniPratioca = (id) => {
     setListaPratilaca(listaPratilaca.filter(p => p.id !== id));
-  };
-
-  const handleFollowClick = () => {
-    if (statusPracenja === 'prati' || statusPracenja === 'poslat_zahtev') {
-      setStatusPracenja('ne_prati'); 
-    } else {
-      if (tipProfila === 'javni') {
-        setStatusPracenja('prati'); 
-      } else if (tipProfila === 'privatni') {
-        setStatusPracenja('poslat_zahtev'); 
-      }
-    }
   };
 
   const otvoriProzorZaIzmenu = () => {
@@ -127,7 +253,9 @@ function Profile() {
       </div>
 
       <div style={headerStyle}>
-        <h2 style={{ margin: 0, fontSize: '18px' }}>{userProfile.username}</h2>
+        <h2 style={{ margin: 0, fontSize: '18px' }}>
+          {ucitavamPodatke ? "Učitavanje..." : userProfile.username}
+        </h2>
       </div>
 
       <div style={profileInfoStyle}>
@@ -154,14 +282,15 @@ function Profile() {
         {tipProfila === 'moj' ? (
           <>
             <button onClick={otvoriProzorZaIzmenu} style={editButtonStyle}>Uredi profil</button>
-            <button onClick={() => navigate('/login')} style={{...editButtonStyle, marginLeft: '5px', backgroundColor: '#efefef'}}>Odjavi se</button>
+            <button onClick={handlePraviLogout} style={{...editButtonStyle, marginLeft: '5px', backgroundColor: '#efefef', color: 'red'}}>Odjavi se</button>
           </>
         ) : (
           <>
             <button onClick={handleFollowClick} style={statusPracenja === 'ne_prati' ? followButtonStyle : followingButtonStyle}>
               {statusPracenja === 'ne_prati' ? 'Zaprati' : (statusPracenja === 'poslat_zahtev' ? 'Zahtev poslat' : 'Praćenje')}
             </button>
-            <button onClick={() => setBlokiran(!blokiran)} style={{...followingButtonStyle, marginLeft: '5px', color: blokiran ? 'white' : 'red', backgroundColor: blokiran ? 'red' : '#efefef'}}>
+            {/* OVDJE SMO ZAMENILI OBIČAN ONCLICK SA handleBlockClick */}
+            <button onClick={handleBlockClick} style={{...followingButtonStyle, marginLeft: '5px', color: blokiran ? 'white' : 'red', backgroundColor: blokiran ? 'red' : '#efefef'}}>
               {blokiran ? 'Odblokiraj' : 'Blokiraj'}
             </button>
           </>
