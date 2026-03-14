@@ -5,9 +5,13 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // prepravih to sto mi se navbar video i pre prijave
+  if (location.pathname === '/login' || location.pathname === '/register') {
+    return null; 
+  }
+
   const isActive = (path) => location.pathname === path;
 
-  
   const activeColor = "#262626";
   const inactiveColor = "#8e8e8e";
 
