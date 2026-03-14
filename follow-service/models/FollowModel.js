@@ -123,7 +123,7 @@ const FollowModel = {
     return rows.map(r => r.userId);
   },
 
-      // Lista pratilaca korisnika
+      // Lista pratilaca korisnikaa
   async getFollowersList(userId) {
     const query = `
       SELECT follower_id AS userId
