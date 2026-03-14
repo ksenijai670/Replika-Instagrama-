@@ -37,7 +37,7 @@ describe('Profile Komponenta', () => {
         <Profile />
       </BrowserRouter>
     );
-
+    
     const blockButton = screen.getByRole('button', { name: /Blokiraj/i });
     expect(blockButton).toBeInTheDocument();
 

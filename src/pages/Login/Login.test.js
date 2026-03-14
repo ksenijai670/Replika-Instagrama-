@@ -55,7 +55,7 @@ describe('Login Komponenta', () => {
 
     fireEvent.click(submitButton);
 
-    // cekamo da asinhroni fetch prodje i da se pozove preusmeravanje 
+    // cekamo da asinhroni fetch prodje i da se pozove preusmeravanjje 
     await waitFor(() => {
       expect(mockedNavigate).toHaveBeenCalledWith('/');
     });
