@@ -55,7 +55,7 @@ services:
 
   mysql-follow_service_db:
     image: mysql:8.0
-    container_name: mysql-follow-service_db
+    container_name: mysql-follow_service_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: follow_service_db_password
@@ -144,12 +144,16 @@ services:
       DB_USER: auth_db_user
       DB_PASSWORD: auth_db_password
       DB_NAME: auth_db
-      USER_FOLLOWS_URL: http://user-follows:3011
+      JWT_SECRET: ${JWT_SECRET}
+      FOLLOW_SERVICE_URL: http://follow-service:3004
+      POST_SERVICE_URL: http://post-service:3006
       PORT: 3010
     depends_on:
       mysql-auth_db:
         condition: service_healthy
-      user-follows:
+      follow-service:
+        condition: service_started
+      post-service:
         condition: service_started
 
   # ─── Follow service ───────────────────────────────────────
@@ -167,35 +171,6 @@ services:
       DB_NAME: follow_service_db
       PORT: 3004
       USER_INFO_SERVICE_URL: http://profile:3010
-    depends_on:
-      mysql-follow_service_db:
-        condition: service_healthy
-
-  # ─── User follows / followers ─────────────────────────────
-  user-follows:
-    build: ./profile/userFollowing
-    image: alexa151/faks-projekat-pisibp:UserFollows-${IMAGE_TAG}
-    restart: unless-stopped
-    environment:
-      DB_HOST: mysql-follow_service_db
-      DB_USER: follow_service_db_user
-      DB_PASSWORD: follow_service_db_password
-      DB_NAME: follow_service_db
-      PORT: 3011
-    depends_on:
-      mysql-follow_service_db:
-        condition: service_healthy
-
-  users-following:
-    build: ./profile/userFollowers
-    image: alexa151/faks-projekat-pisibp:UsersFollowing-${IMAGE_TAG}
-    restart: unless-stopped
-    environment:
-      DB_HOST: mysql-follow_service_db
-      DB_USER: follow_service_db_user
-      DB_PASSWORD: follow_service_db_password
-      DB_NAME: follow_service_db
-      PORT: 3012
     depends_on:
       mysql-follow_service_db:
         condition: service_healthy
@@ -227,9 +202,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-        
-# ─── Interactions service ─────────────────────────────────────────
 
+  # ─── Interactions service ─────────────────────────────────
   interactions-service:
     build:
       context: ./content_servisi/interactions-service
@@ -245,21 +219,6 @@ services:
       DB_NAME: interactions_service_db
     depends_on:
       mysql-interactions_service_db:
-        condition: service_healthy
-
-  # ─── User posts ───────────────────────────────────────────
-  user-posts:
-    build: ./profile/userPosts
-    image: alexa151/faks-projekat-pisibp:UserPosts-${IMAGE_TAG}
-    restart: unless-stopped
-    environment:
-      DB_HOST: mysql-post_service_db
-      DB_USER: post_service_db_user
-      DB_PASSWORD: post_service_db_password
-      DB_NAME: post_service_db
-      PORT: 3014
-    depends_on:
-      mysql-post_service_db:
         condition: service_healthy
 
   # ─── Feed ─────────────────────────────────────────────────
@@ -289,12 +248,11 @@ services:
       REDIS_URL: redis://redis:6379
       AUTH_SERVICE_URL: http://authentication:3001
       PROFILE_SERVICE_URL: http://profile:3010
-      USER_FOLLOWING_SERVICE_URL: http://user-follows:3011
-      USER_FOLLOWERS_SERVICE_URL: http://users-following:3012
-      USER_POSTS_SERVICE_URL: http://user-posts:3014
       FEED_SERVICE_URL: http://feed:3015
       FOLLOW_SERVICE_URL: http://follow-service:3004
       POST_SERVICE_URL: http://post-service:3006
+      INTERACTIONS_SERVICE_URL: http://interactions-service:3005
+      FRONTEND_URL: http://localhost:3000
       PORT: 4000
     depends_on:
       redis:
@@ -303,17 +261,13 @@ services:
         condition: service_started
       profile:
         condition: service_started
-      user-follows:
-        condition: service_started
-      users-following:
-        condition: service_started
-      user-posts:
-        condition: service_started
-      feed:
-        condition: service_started
       follow-service:
         condition: service_started
       post-service:
+        condition: service_started
+      interactions-service:
+        condition: service_started
+      feed:
         condition: service_started
 
 volumes:
