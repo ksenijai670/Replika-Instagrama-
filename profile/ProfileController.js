@@ -1,13 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { searchUsers, getUserInfo } = require('./ProfileModel');
+const { searchUsers, getUserInfo, getFollowers, getFollowing } = require('./ProfileModel');
 
 const app = express();
 app.use(express.json());
 
-// ─── Auth middleware (local JWT verify) ───────────────────
-// Both routes use local verification since we query auth_db directly
+// ─── Auth middleware ──────────────────────────────────────
 const authMiddleware = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
 
@@ -68,6 +67,50 @@ app.get('/users/:userId', authMiddleware, async (req, res) => {
     return res.status(200).json({ user: result.data });
   } catch (err) {
     console.error('[UserInfo] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Followers list ───────────────────────────────────────
+app.get('/users/:userId/followers', authMiddleware, async (req, res) => {
+  const targetUserId = parseInt(req.params.userId);
+
+  if (isNaN(targetUserId)) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
+
+  try {
+    const result = await getFollowers(targetUserId, req.user.userId);
+
+    if (result.error) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(200).json({ followers: result.data });
+  } catch (err) {
+    console.error('[Followers] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Following list ───────────────────────────────────────
+app.get('/users/:userId/following', authMiddleware, async (req, res) => {
+  const targetUserId = parseInt(req.params.userId);
+
+  if (isNaN(targetUserId)) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
+
+  try {
+    const result = await getFollowing(targetUserId, req.user.userId);
+
+    if (result.error) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(200).json({ following: result.data });
+  } catch (err) {
+    console.error('[Following] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
