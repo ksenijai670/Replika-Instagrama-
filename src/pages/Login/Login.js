@@ -12,26 +12,28 @@ function Login() {
     e.preventDefault();
     
     try {
-      // 1.SADA GAĐAMO PRAVI API GATEWAY NA PORTU 4000
       const odgovor = await fetch('http://localhost:4000/api/authentication/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        // 2. sgaljemo ono što je trazio: username i password
+        // saljemo  rec "identifier" 
         body: JSON.stringify({
-          username: credentials.identifier, 
+          identifier: credentials.identifier, 
           password: credentials.password
         })
       });
 
-      // 3. Da li nas je pustio unutra?
       if (odgovor.ok) {
-        // 1. Pretvaramo odgovor servera u podatke koje React razume
         const podaci = await odgovor.json();
         
-        // 2. Čuvamo token (VIP narukvicu) u memoriju pretraživača
-        localStorage.setItem('token', podaci.token);
+        // on salje "accessToken", pa mi to cuvamo (pod imenom 'token' da bi u App.js radilo bez prepravki)
+        localStorage.setItem('token', podaci.accessToken);
+
+        // posto on salje i refreshToken, mozemo i njega da sacuvamo zlu ne trebalo :/ 
+        if (podaci.refreshToken) {
+          localStorage.setItem('refreshToken', podaci.refreshToken);
+        }
 
         alert("Uspešna prijava!");
         navigate('/'); // prelazak na Timeline
@@ -40,7 +42,6 @@ function Login() {
       }
       
     } catch (error) {
-      // 4. Ovo iskače ako server uopšte ne radi ili fali CORS
       alert("Server trenutno nije dostupan ili je blokiran (CORS)!");
       console.error("Greška pri fetch-u:", error);
     }
