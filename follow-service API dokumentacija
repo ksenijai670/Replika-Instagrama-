@@ -1,268 +1,60 @@
-# 📖 Follow Service — API Dokumentacija
+# Follow-servis – API dokumentacija 
+
+Mikroservis za praćenje, blokiranje i upravljanje odnosima između korisnika.
+
+## **Osnovni Info**
+
+- **Base URL:**  
+  Lokalno: `http://localhost:3004`  
+  U Docker mreži/gateway-u: `http://follow-service:3004`  
+- **Format:**  
+  Sve rute očekuju/vraćaju `application/json`.
+- **Autentifikacija:**  
+  Svaka ruta očekuje header:  
+  - **`x-user-id`**: ID korisnika koji šalje zahtev  
+  - (Opcionalno: `x-username`)
+
+> **Rute**  
+> Frontend **uvek koristi Gateway rute** – originalne rute mikroservisa su ovde radi razjašnjenja povezivanja i za backend/gateway tim.
+
+| Funkcija                | Mikroservis ruta        | Gateway ruta                   | Metod |
+|-------------------------|------------------------|-------------------------------|-------|
+| Zahtev za praćenje      | `/follow`              | `/api/follow`                 | POST  |
+| Prihvatanje zahteva     | `/follow/accept`       | `/api/follow/accept`          | PUT   |
+| Odbijanje zahteva       | `/follow/reject`       | `/api/follow/reject`          | DELETE|
+| Prekid praćenja         | `/unfollow`            | `/api/unfollow`               | DELETE|
+| Uklanjanje pratioca     | `/followers/remove`    | `/api/followers/remove`       | DELETE|
+| Blokiranje korisnika    | `/block`               | `/api/block`                  | POST  |
+| Provera blok statusa    | `/block-status`        | `/api/block-status`           | GET   |
+| Lista zahteva za praćenje| `/follow/notifications/:userId` | `/api/follow/notifications/:userId` | GET   |
+| Odnos (blok/follow)     | `/relationship-status` | `/api/relationship-status`    | GET   |
+| Statistika korisnika    | `/stats/:userId`       | `/api/stats/:userId`          | GET   |
+| Lista koje pratiš       | `/follow/following`    | `/api/follow/following`       | GET   |
+| Lista ko te prati       | `/follow/followers`    | `/api/follow/followers`       | GET   |
+
+
+**Base URL za mikroservis:**  
+`http://localhost:3004`
+
+**Base URL za Gateway:**  
+`http://localhost:4000`  
+(zajednički za sve servise: samo dodaš `/api`)
+
+
+## **Primer pozivanja sa frontend-a (preko gatewaya):**
+
+```js
+// Dodavanje follow zahteva:
+fetch('http://localhost:4000/api/follow', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'x-user-id': '123' },
+  body: JSON.stringify({ following_id: '456' })
+});
+
+
+## **Napomene**
+- **Frontend koristi isključivo Gateway rute!**
+- Svi zahtevi moraju imati header `x-user-id`.
+- Parametri id-eva se šalju u body ili kao deo URL-a, prema funkciji.
+- Odgovori su u JSON formatu.
 
-**Bazni URL:** `http://follow-service:3004` (Docker) ili `http://localhost:3004` (lokalno)
-
----
-
-## 📌 Praćenje (Follow)
-
-### 1. Zaprati korisnika
-**`POST /follow`**
-
-Šalje zahtev za praćenje. Automatski ACCEPTED za javne profile, PENDING za privatne.
-
-**Request body:**
-```json
-{
-  "follower_id": 1,
-  "following_id": 2
-}
-```
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Responses:**
-| Status | Opis |
-|--------|------|
-| 201 | `{ "message": "Uspešno zapraćeno.", "status": "ACCEPTED" }` |
-| 201 | `{ "message": "Zahtev za praćenje poslat.", "status": "PENDING" }` |
-| 400 | follower_id i following_id su obavezni |
-| 400 | Ne možete pratiti sami sebe |
-| 400 | Već postoji zahtev ili veza praćenja |
-| 403 | Praćenje nije dozvoljeno jer postoji blokada |
-
----
-
-### 2. Prihvati zahtev za praćenje
-**`PUT /follow/accept`**
-
-Vlasnik privatnog profila prihvata PENDING zahtev.
-
-**Request body:**
-```json
-{
-  "follower_id": 1,
-  "following_id": 2
-}
-```
-
-**Responses:**
-| Status | Opis |
-|--------|------|
-| 200 | `{ "message": "Zahtev prihvaćen." }` |
-| 400 | follower_id i following_id su obavezni |
-| 404 | Pending zahtev nije pronađen |
-
----
-
-### 3. Odbij zahtev za praćenje
-**`DELETE /follow/reject`**
-
-Vlasnik privatnog profila odbija PENDING zahtev.
-
-**Request body:**
-```json
-{
-  "follower_id": 1,
-  "following_id": 2
-}
-```
-
-**Responses:**
-| Status | Opis |
-|--------|------|
-| 200 | `{ "message": "Zahtev odbijen." }` |
-| 400 | follower_id i following_id su obavezni |
-| 404 | Pending zahtev nije pronađen |
-
----
-
-### 4. Obaveštenja — lista zahteva na čekanju
-**`GET /follow/notifications/:userId`**
-
-Vraća sve PENDING zahteve za praćenje za datog korisnika.
-
-**Primer:** `GET /follow/notifications/5`
-
-**Response (200):**
-```json
-{
-  "pending_requests": [
-    { "follower_id": 3, "created_at": "2026-03-10T14:30:00.000Z" },
-    { "follower_id": 7, "created_at": "2026-03-09T10:15:00.000Z" }
-  ]
-}
-```
-
----
-
-### 5. Otprati korisnika (unfollow)
-**`DELETE /unfollow`**
-
-Pratilac prekida praćenje.
-
-**Request body:**
-```json
-{
-  "follower_id": 1,
-  "following_id": 2
-}
-```
-
-**Responses:**
-| Status | Opis |
-|--------|------|
-| 200 | `{ "message": "Uspešno otpraćeno." }` |
-| 400 | follower_id i following_id su obavezni |
-| 404 | Veza praćenja nije pronađena |
-
----
-
-### 6. Ukloni pratioca
-**`DELETE /followers/remove`**
-
-Profil uklanja svog pratioca.
-
-**Request body:**
-```json
-{
-  "profile_id": 2,
-  "follower_id": 1
-}
-```
-
-**Responses:**
-| Status | Opis |
-|--------|------|
-| 200 | `{ "message": "Pratilac je uklonjen." }` |
-| 400 | profile_id i follower_id su obavezni |
-| 404 | Pratilac nije pronađen |
-
----
-
-### 7. Statistika (broj pratilaca / praćenja)
-**`GET /stats/:userId`**
-
-**Primer:** `GET /stats/5`
-
-**Response (200):**
-```json
-{
-  "followers": 120,
-  "following": 85
-}
-```
-
----
-
-## 🚫 Blokiranje (Block)
-
-### 8. Blokiraj korisnika
-**`POST /block`**
-
-Blokira korisnika i automatski briše sve follow veze u oba smera.
-
-**Request body:**
-```json
-{
-  "blocker_id": 1,
-  "blocked_id": 2
-}
-```
-
-**Responses:**
-| Status | Opis |
-|--------|------|
-| 201 | `{ "message": "Korisnik je blokiran i follow veze su uklonjene." }` |
-| 400 | blocker_id i blocked_id su obavezni |
-| 400 | Ne možete blokirati sami sebe |
-| 400 | Korisnik je već blokiran |
-
----
-
-### 9. Proveri blok status
-**`GET /block-status`**
-
-Proverava da li postoji blok između dva korisnika (u bilo kom smeru).
-
-**Primer:** `GET /block-status?userA=1&userB=2`
-
-**Response (200):**
-```json
-{
-  "blocked": true
-}
-```
-
----
-
-### 10. Proveri kompletni status odnosa
-**`GET /relationship-status`**
-
-Vraća i blok status i follow status između dva korisnika.
-
-**Primer:** `GET /relationship-status?follower_id=1&following_id=2`
-
-**Response (200):**
-```json
-{
-  "blocked": false,
-  "followStatus": "ACCEPTED"
-}
-```
-
-Mogući `followStatus` vrednosti: `"ACCEPTED"`, `"PENDING"`, `"NONE"`
-
----
-
-## 🔗 Integracija sa drugim servisima
-
-### Follow-service POZIVA:
-| Servis | URL | Zašto |
-|--------|-----|-------|
-| user-info | `http://user-info:3013/users/:id` | Provera da li je profil privatan/javan |
-
-### Drugi servisi POZIVAJU follow-service:
-
-**Primer poziva iz drugog servisa:**
-```javascript
-const FOLLOW_SERVICE_URL = process.env.FOLLOW_SERVICE_URL || 'http://follow-service:3004';
-
-// Provera bloka pre prikazivanja sadržaja
-const res = await fetch(`${FOLLOW_SERVICE_URL}/block-status?userA=${currentUser}&userB=${targetUser}`);
-const { blocked } = await res.json();
-
-// Provera follow statusa
-const res2 = await fetch(`${FOLLOW_SERVICE_URL}/relationship-status?follower_id=${currentUser}&following_id=${targetUser}`);
-const { blocked, followStatus } = await res2.json();
-```
-
-| Servis | Endpoint koji koristi | Zašto |
-|--------|----------------------|-------|
-| search | `GET /block-status` | Ne prikazuj blokirane profile u pretrazi |
-| feed | `GET /block-status` | Ne prikazuj objave blokiranih korisnika |
-| feed | `GET /relationship-status` | Prikaži samo objave od praćenih |
-| user-posts | `GET /block-status` | Sakrij objave ako je blokiran |
-| user-posts | `GET /relationship-status` | Proveri da li sme da vidi privatni profil |
-
----
-
-## ⚙️ Konfiguracija
-
-**Docker Compose environment varijable:**
-```yaml
-environment:
-  DB_HOST: mysql-follow
-  DB_USER: root
-  DB_PASSWORD: root
-  DB_NAME: follow_service
-  PORT: 3004
-  USER_INFO_SERVICE_URL: http://user-info:3013
-```
-
-**Port:** `3004`
-**Baza:** MySQL 8.0 (`follow_service`)
-**Tabele:** `follows`, `blocks`
