@@ -110,6 +110,30 @@ const FollowModel = {
       following: following[0].count
     };
   },
+
+        // Lista korisnika koje userId prati
+  async getFollowingList(userId) {
+    const query = `
+      SELECT following_id AS userId
+      FROM follows
+      WHERE follower_id = ? AND status = 'ACCEPTED'
+      ORDER BY created_at DESC
+    `;
+    const [rows] = await db.query(query, [userId]);
+    return rows.map(r => r.userId);
+  },
+
+      // Lista pratilaca korisnikaa
+  async getFollowersList(userId) {
+    const query = `
+      SELECT follower_id AS userId
+      FROM follows
+      WHERE following_id = ? AND status = 'ACCEPTED'
+      ORDER BY created_at DESC
+    `;
+    const [rows] = await db.query(query, [userId]);
+    return rows.map(r => r.userId);
+  },
         //vraca status follow relacije dva korisnika
   async getFollowStatus(followerId, followingId) {
     const query = `
