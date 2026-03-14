@@ -1,17 +1,24 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Login from './Login';
 
-// da li dugme stvarno preusmerava
 const mockedNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockedNavigate,
 }));
 
+// laziramo fetch i alert da test ne bi pukao bez pravog pretraivaca
+global.fetch = jest.fn();
+window.alert = jest.fn();
+
 describe('Login Komponenta', () => {
 
-  test('proverava da li Login stranica sadrži polja za kredencijale i dugme', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('proverava da li Login stranica sadrzi polja za kredencijale i dugme', () => {
     render(
       <BrowserRouter>
         <Login />
@@ -23,8 +30,13 @@ describe('Login Komponenta', () => {
     expect(screen.getByRole('button', { name: /Prijavi se/i })).toBeInTheDocument();
   });
 
-  // Test kucanje i kliktanje 
-  test('omogućava unos teksta u polja i klik na dugme za prijavu', () => {
+  test('omogućava unos teksta u polja i klik na dugme za prijavu', async () => {
+    // laziramo uspesan odgovor servera sa accessToken-om koji moj kod occekuje
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ accessToken: 'lazni-test-token' })
+    });
+
     render(
       <BrowserRouter>
         <Login />
@@ -35,7 +47,6 @@ describe('Login Komponenta', () => {
     const passwordInput = screen.getByPlaceholderText(/Lozinka/i);
     const submitButton = screen.getByRole('button', { name: /Prijavi se/i });
 
-    // kucanje korisnika u input polja
     fireEvent.change(identifierInput, { target: { value: 'ksenija_dev' } });
     fireEvent.change(passwordInput, { target: { value: 'tajnalozinka123' } });
 
@@ -44,6 +55,9 @@ describe('Login Komponenta', () => {
 
     fireEvent.click(submitButton);
 
-    expect(mockedNavigate).toHaveBeenCalledWith('/');
+    // cekamo da asinhroni fetch prodje i da se pozove preusmeravanje 
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith('/');
+    });
   });
 });

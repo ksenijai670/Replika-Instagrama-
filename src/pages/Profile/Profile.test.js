@@ -8,6 +8,13 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockedNavigate,
 }));
 
+beforeAll(() => {
+  jest.spyOn(console, 'warn').mockImplementation((msg) => {
+    if (msg.includes('React Router Future Flag Warning')) return;
+    console.warn(msg);
+  });
+});
+
 describe('Profile Komponenta', () => {
   
   test('prikazuje osnovne informacije o korisniku (ime, bio, statistika)', () => {
@@ -17,10 +24,8 @@ describe('Profile Komponenta', () => {
       </BrowserRouter>
     );
 
-    // Posto je default stanje "privatni profil" - trazimo ime "neko_tajni"
     expect(screen.getByText(/neko_tajni/i)).toBeInTheDocument();
     
-    // Provera da li se prikazuju reci objava, pratilaca, prati (STRIKTNA PRETRAGA DA SE ROBOT NE ZBUNI)
     expect(screen.getByText('objava')).toBeInTheDocument();
     expect(screen.getByText('pratilaca')).toBeInTheDocument();
     expect(screen.getByText('prati')).toBeInTheDocument();
@@ -38,11 +43,10 @@ describe('Profile Komponenta', () => {
 
     fireEvent.click(blockButton);
 
-    // Provera da li se tekst promenio u Odblokiraj
     expect(screen.getByRole('button', { name: /Odblokiraj/i })).toBeInTheDocument();
   });
 
-  test('otvara modal (iskačući prozor) kada se klikne na dugme "Moj Profil" da uredi podatke', () => {
+  test('otvara modal kada se klikne na dugme "Moj Profil" da uredi podatke', () => {
     render(
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Profile />
@@ -55,10 +59,8 @@ describe('Profile Komponenta', () => {
     const editButton = screen.getByRole('button', { name: /Uredi profil/i });
     fireEvent.click(editButton);
 
-    // Provera da li je iskocio prozor gde pise Ime, Korisnicko ime, Biografija
     expect(screen.getByText('Ime')).toBeInTheDocument();
     expect(screen.getByText('Korisničko ime')).toBeInTheDocument();
     expect(screen.getByText('Biografija')).toBeInTheDocument();
   });
-
 });
