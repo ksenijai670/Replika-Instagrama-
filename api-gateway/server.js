@@ -2,6 +2,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const express = require('express');
+const cors = require('cors');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const authMiddleware = require('./middleware/authMiddleware');
@@ -10,6 +11,7 @@ const errorHandler = require('./middleware/errorHandler');
 const services = require('./config/services');
 
 const app = express();
+app.use(cors());
 const PORT = process.env.PORT || 4000;
 
 app.use(rateLimiter);
