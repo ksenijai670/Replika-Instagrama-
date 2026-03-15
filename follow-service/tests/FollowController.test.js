@@ -35,7 +35,7 @@ describe('FollowController - unit tests', () => {
   // --------------------
   describe('followUser', () => {
     test('400 ako fali follower_id ili following_id', async () => {
-      const req = { body: { }, headers: {} }; // nema ni following_id ni x-user-id
+      const req = { body: { }, headers: {} };
       const res = mockRes();
 
       await FollowController.followUser(req, res);
@@ -55,13 +55,10 @@ describe('FollowController - unit tests', () => {
 
     test('403 ako postoji blok između korisnika', async () => {
       FollowModel.isBlocked.mockResolvedValue(true);
-
-      // Mock fetch jer se koristi u funkciji iznad blok provere
       global.fetch = jest.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ user: { is_private: false } })
       });
-
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -79,7 +76,6 @@ describe('FollowController - unit tests', () => {
         ok: true,
         json: async () => ({ user: { is_private: false } })
       });
-
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -96,7 +92,6 @@ describe('FollowController - unit tests', () => {
         ok: true,
         json: async () => ({ user: { is_private: true } })
       });
-
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -113,7 +108,6 @@ describe('FollowController - unit tests', () => {
         ok: true,
         json: async () => ({ user: { is_private: false } })
       });
-
       const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -144,9 +138,7 @@ describe('FollowController - unit tests', () => {
     test('followUser -> 400 ako korisnik ne postoji', async () => {
       FollowModel.isBlocked.mockResolvedValue(false);
       FollowModel.findFollow.mockResolvedValue(null);
-      // fetch NOT OK (user ne postoji)
       global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
-
       const req = { body: { following_id: '99' }, headers: { 'x-user-id': '1' } };
       const res = mockRes();
 
@@ -163,8 +155,7 @@ describe('FollowController - unit tests', () => {
   describe('acceptFollow', () => {
     test('200 ako je pending zahtev uspešno prihvaćen', async () => {
       FollowModel.acceptPendingFollow.mockResolvedValue({ affectedRows: 1 });
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.acceptFollow(req, res);
@@ -175,8 +166,7 @@ describe('FollowController - unit tests', () => {
 
     test('404 ako pending zahtev ne postoji', async () => {
       FollowModel.acceptPendingFollow.mockResolvedValue({ affectedRows: 0 });
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.acceptFollow(req, res);
@@ -186,8 +176,7 @@ describe('FollowController - unit tests', () => {
 
     test('acceptFollow -> 500 ako model baci grešku', async () => {
       FollowModel.acceptPendingFollow.mockRejectedValue(new Error('DB fail'));
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.acceptFollow(req, res);
@@ -203,8 +192,7 @@ describe('FollowController - unit tests', () => {
   describe('rejectFollow', () => {
     test('200 ako je pending zahtev uspešno odbijen', async () => {
       FollowModel.rejectPendingFollow.mockResolvedValue({ affectedRows: 1 });
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.rejectFollow(req, res);
@@ -215,8 +203,7 @@ describe('FollowController - unit tests', () => {
 
     test('404 ako pending zahtev ne postoji', async () => {
       FollowModel.rejectPendingFollow.mockResolvedValue({ affectedRows: 0 });
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.rejectFollow(req, res);
@@ -226,8 +213,7 @@ describe('FollowController - unit tests', () => {
 
     test('rejectFollow -> 500 ako model baci grešku', async () => {
       FollowModel.rejectPendingFollow.mockRejectedValue(new Error('DB fail'));
-
-      const req = { body: { following_id: '2' }, headers: { 'x-user-id': '1' } };
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.rejectFollow(req, res);
@@ -241,23 +227,31 @@ describe('FollowController - unit tests', () => {
   // getNotifications
   // --------------------
   describe('getNotifications', () => {
-    test('200 vraća listu pending zahteva', async () => {
+    test('200 vraća listu pending zahteva sa avatar i username', async () => {
       FollowModel.getPendingRequests.mockResolvedValue([{ follower_id: '5' }]);
-
-      const req = { headers: { 'x-user-id': '2' } }; // userId iz headera
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { username: 'Nepoznat korisnik', profile_image_url: null } })
+      });
+      const req = { headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.getNotifications(req, res);
 
       expect(FollowModel.getPendingRequests).toHaveBeenCalledWith('2');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ pending_requests: [{ follower_id: '5' }] });
+      expect(res.json).toHaveBeenCalledWith({
+        pending_requests: [
+          { follower_id: '5', username: 'Nepoznat korisnik', avatar: null }
+        ]
+      });
     });
 
     test('getNotifications -> 500 ako model baci grešku', async () => {
       FollowModel.getPendingRequests.mockRejectedValue(new Error('DB fail'));
       const req = { headers: { 'x-user-id': '2' } };
       const res = mockRes();
+
       await FollowController.getNotifications(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
@@ -312,7 +306,7 @@ describe('FollowController - unit tests', () => {
     test('200 ako je pratilac uklonjen', async () => {
       FollowModel.deleteFollow.mockResolvedValue({ affectedRows: 1 });
 
-      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } }; // vlasnik iz headera
+      const req = { body: { follower_id: '1' }, headers: { 'x-user-id': '2' } };
       const res = mockRes();
 
       await FollowController.removeFollower(req, res);
@@ -327,7 +321,7 @@ describe('FollowController - unit tests', () => {
   // --------------------
   describe('blockUser', () => {
     test('400 ako fali blocker_id ili blocked_id', async () => {
-      const req = { body: { }, headers: {} }; // nema ni blocked_id ni x-user-id
+      const req = { body: { }, headers: {} };
       const res = mockRes();
 
       await FollowController.blockUser(req, res);
@@ -377,7 +371,7 @@ describe('FollowController - unit tests', () => {
     test('200 vraća followers/following', async () => {
       FollowModel.getFollowStats.mockResolvedValue({ followers: 3, following: 10 });
 
-      const req = { headers: { 'x-user-id': '7' } }; // userId iz headera
+      const req = { headers: { 'x-user-id': '7' } };
       const res = mockRes();
 
       await FollowController.getStats(req, res);
@@ -430,7 +424,6 @@ describe('FollowController - unit tests', () => {
     });
   });
   
-  //test za getFollowing
   describe('getFollowing', () => {
     test('200 vraća listu following korisnika', async () => {
       FollowModel.getFollowingList.mockResolvedValue(['2', '3']);
@@ -456,7 +449,6 @@ describe('FollowController - unit tests', () => {
     });
   });
 
-  //test za getFollowers
   describe('getFollowers', () => {
     test('200 vraća listu followers korisnika', async () => {
       FollowModel.getFollowersList.mockResolvedValue(['2', '5']);
@@ -482,9 +474,6 @@ describe('FollowController - unit tests', () => {
     });
   });
 
-  // --------------------
-  // getRelationshipStatus
-  // --------------------
   describe('getRelationshipStatus', () => {
     test('200 vraća blocked + followStatus', async () => {
       FollowModel.isBlocked.mockResolvedValue(false);
