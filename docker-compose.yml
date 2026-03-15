@@ -170,7 +170,7 @@ services:
       DB_PASSWORD: follow_service_db_password
       DB_NAME: follow_service_db
       PORT: 3004
-      USER_INFO_SERVICE_URL: http://profile:3010
+      PROFILE_SERVICE_URL: http://profile:3010
     depends_on:
       mysql-follow_service_db:
         condition: service_healthy
