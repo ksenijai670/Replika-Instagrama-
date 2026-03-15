@@ -662,5 +662,119 @@ describe("InteractionController - unit tests", () => {
     });
 
     });
+  describe("jos coverage", () => {
+    test("updateComment vraca 500 kada model baci gresku", async () => {
+      InteractionModel.getCommentById.mockRejectedValue(new Error("db error"));
 
+      const req = mockReq({
+        params: { commentId: "10" },
+        body: { content: "novo" },
+        headers: { "x-user-id": "1", authorization: "Bearer token" },
+      });
+      const res = mockRes();
+
+      await InteractionController.updateComment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Greška pri izmeni komentara",
+      });
+    });
+
+    test("deleteComment vraca 401 kada nema tokena", async () => {
+      const req = mockReq({
+        params: { commentId: "10" },
+        headers: { "x-user-id": "1" },
+      });
+      const res = mockRes();
+
+      await InteractionController.deleteComment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Access token missing",
+      });
+    });
+
+    test("deleteComment vraca 500 kada model baci gresku", async () => {
+      InteractionModel.getCommentById.mockRejectedValue(new Error("db error"));
+
+      const req = mockReq({
+        params: { commentId: "10" },
+        headers: { "x-user-id": "1", authorization: "Bearer token" },
+      });
+      const res = mockRes();
+
+      await InteractionController.deleteComment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Greška pri brisanju komentara",
+      });
+    });
+
+    test("getCommentsByPost vraca 500 kada model baci gresku", async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 5, userId: 1 }),
+      });
+
+      InteractionModel.getCommentsByPostId.mockRejectedValue(new Error("db error"));
+
+      const req = mockReq({
+        params: { id: "5" },
+        headers: { "x-user-id": "1", authorization: "Bearer token" },
+      });
+      const res = mockRes();
+
+      await InteractionController.getCommentsByPost(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Greška pri čitanju komentara",
+      });
+    });
+
+    test("getCommentsCount vraca 500 kada model baci gresku", async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 5, userId: 1 }),
+      });
+
+      InteractionModel.getCommentsByPostId.mockRejectedValue(new Error("db error"));
+
+      const req = mockReq({
+        params: { id: "5" },
+        headers: { "x-user-id": "1", authorization: "Bearer token" },
+      });
+      const res = mockRes();
+
+      await InteractionController.getCommentsCount(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Greška pri brojanju komentara",
+      });
+    });
+
+    test("deleteByPost vraca 500 kada model baci gresku", async () => {
+      InteractionModel.deleteInteractionsByPostId.mockRejectedValue(
+        new Error("db error")
+      );
+
+      const req = mockReq({
+        params: { postId: "5" },
+      });
+      const res = mockRes();
+
+      await InteractionController.deleteByPost(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Greška pri brisanju interakcija objave",
+      });
+    });
+  });
 });
