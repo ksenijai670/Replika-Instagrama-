@@ -17,6 +17,7 @@ app.get('/test', (req, res) => {
 app.post('/posts/:id/likes', InteractionController.likePost);
 app.delete('/posts/:id/likes', InteractionController.unlikePost);
 app.get('/posts/:id/likes/count', InteractionController.getLikesCount);
+app.get('/posts/:id/likes/status', InteractionController.checkLikeStatus);
 
 /* komentari */
 app.post('/posts/:id/comments', InteractionController.addComment);
