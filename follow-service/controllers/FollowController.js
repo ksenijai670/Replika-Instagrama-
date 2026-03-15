@@ -1,7 +1,7 @@
 const FollowModel = require('../models/FollowModel');
 
-// Konfiguracija za Profile servis
-const PROFILE_SERVICE_URL = process.env.PROFILE_SERVICE_URL || 'http://profile-service:3010';
+// Konfiguracija za Profile servis 
+const PROFILE_SERVICE_URL = process.env.PROFILE_SERVICE_URL || 'http://profile:3010';
 
 async function getProfilePrivacyStatus(userId, req) {
   try {

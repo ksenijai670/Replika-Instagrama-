@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 
+coverage/
+
 # uploads (slike/videi)
 uploads/
 post-service/uploads/
