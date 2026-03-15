@@ -551,6 +551,18 @@ const deleteByPost = async (req, res) => {
   }
 };
 
+const checkLikeStatus = async (req, res) => {
+  const postId = Number(req.params.id);
+  const userId = getRequestUserId(req);
+  if (!isValidId(postId) || !isValidId(userId)) return res.status(400).json({ error: "Neispravan zahtev" });
+  try {
+    const exists = await InteractionModel.likeExists(userId, postId);
+    return res.json({ isLiked: exists });
+  } catch (err) {
+    return res.status(500).json({ error: "greska" });
+  }
+};
+
 module.exports = {
   likePost,
   unlikePost,
@@ -561,4 +573,5 @@ module.exports = {
   getCommentsByPost,
   getCommentsCount,
   deleteByPost,
+  checkLikeStatus,
 };
