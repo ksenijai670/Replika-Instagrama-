@@ -46,84 +46,52 @@ app.use('/api/authentication/me',       authMiddleware, proxy(SERVICES.auth + '/
 app.use('/api/profile', authMiddleware, createProxyMiddleware({
   target: SERVICES.profile,
   changeOrigin: true,
-  pathRewrite: { '^/api/profile': '' },
+  parseReqBody: false,
+  pathRewrite: (path) => path === '/' ? '' : path,
 }));
 
 // ─── Follow service ───────────────────────────────────────
-// Use pathRewrite as a function — more reliable than mutating req.url in v3
 app.use('/api/follow', authMiddleware, createProxyMiddleware({
   target: SERVICES.follow,
   changeOrigin: true,
   parseReqBody: false,
-  pathRewrite: (path) => {
-    const suffix = (path === '' || path === '/') ? '' : path;
-    const result = '/follow' + suffix;
-    console.log(`[Gateway] Follow → rewriting to ${result}`);
-    return result;
-  },
-  on: {
-    error: (err, req, res) => {
-      console.error(`[Gateway] Follow Proxy error:`, err.message);
-      if (!res.headersSent) res.status(502).json({ error: 'Follow service unavailable' });
-    }
-  }
+  pathRewrite: (path) => '/follow' + (path === '/' ? '' : path),
 }));
-
 app.use('/api/unfollow', authMiddleware, createProxyMiddleware({
   target: SERVICES.follow,
   changeOrigin: true,
   parseReqBody: false,
-  pathRewrite: (path) => {
-    const suffix = (path === '' || path === '/') ? '' : path;
-    const result = '/unfollow' + suffix;
-    console.log(`[Gateway] Unfollow → rewriting to ${result}`);
-    return result;
-  },
-  on: {
-    error: (err, req, res) => {
-      console.error(`[Gateway] Unfollow Proxy error:`, err.message);
-      if (!res.headersSent) res.status(502).json({ error: 'Follow service unavailable' });
-    }
-  }
+  pathRewrite: (path) => '/unfollow' + (path === '/' ? '' : path),
 }));
-
 app.use('/api/block', authMiddleware, createProxyMiddleware({
   target: SERVICES.follow,
   changeOrigin: true,
   parseReqBody: false,
-  pathRewrite: (path) => {
-    const suffix = (path === '' || path === '/') ? '' : path;
-    const result = '/block' + suffix;
-    console.log(`[Gateway] Block → rewriting to ${result}`);
-    return result;
-  },
-  on: {
-    error: (err, req, res) => {
-      console.error(`[Gateway] Block Proxy error:`, err.message);
-      if (!res.headersSent) res.status(502).json({ error: 'Follow service unavailable' });
-    }
-  }
+  pathRewrite: (path) => '/block' + (path === '/' ? '' : path),
 }));
 
 // ─── Posts ────────────────────────────────────────────────
 app.use('/api/posts', authMiddleware, createProxyMiddleware({
   target: SERVICES.post,
   changeOrigin: true,
-  pathRewrite: { '^/api/posts': '/posts' }
+  parseReqBody: false,
+  pathRewrite: (path) => '/posts' + (path === '/' ? '' : path),
 }));
 
 // ─── Interactions ─────────────────────────────────────────
 app.use('/api/interactions', authMiddleware, createProxyMiddleware({
   target: SERVICES.interactions,
   changeOrigin: true,
-  pathRewrite: { '^/api/interactions': '/interactions' }
+  parseReqBody: false,
+  pathRewrite: (path) => path === '/' ? '' : path,
 }));
 
 // ─── Feed ─────────────────────────────────────────────────
 app.use('/api/feed', authMiddleware, createProxyMiddleware({
   target: SERVICES.feed,
   changeOrigin: true,
-  pathRewrite: { '^/api/feed': '/feed' }
+  parseReqBody: false,
+  pathRewrite: (path) => '/feed' + (path === '/' ? '' : path),
 }));
 
 app.use(errorHandler);
