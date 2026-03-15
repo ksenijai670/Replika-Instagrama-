@@ -59,7 +59,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: follow_service_db_password
-      MYSQL_DATABASE: follow_service_db
+      MYSQL_DATABASE: follow_service
       MYSQL_USER: follow_service_db_user
       MYSQL_PASSWORD: follow_service_db_password
     ports:
@@ -168,7 +168,7 @@ services:
       DB_HOST: mysql-follow_service_db
       DB_USER: follow_service_db_user
       DB_PASSWORD: follow_service_db_password
-      DB_NAME: follow_service_db
+      DB_NAME: follow_service
       PORT: 3004
       PROFILE_SERVICE_URL: http://profile:3010
     depends_on:
