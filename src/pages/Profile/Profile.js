@@ -6,7 +6,7 @@ function Profile() {
   const location = useLocation();
   const [pretrazeniKorisnik, setPretrazeniKorisnik] = useState(location.state?.korisnik || null);
 
-  const [tipProfila, setTipProfila] = useState(pretrazeniKorisnik ? 'javni' : 'privatni'); 
+  const [tipProfila, setTipProfila] = useState(pretrazeniKorisnik ? 'javni' : 'moj'); 
   const [statusPracenja, setStatusPracenja] = useState('ne_prati'); 
   const [isEditing, setIsEditing] = useState(false);
   const [blokiran, setBlokiran] = useState(false); 
@@ -19,24 +19,22 @@ function Profile() {
 
   const [ucitavamPodatke, setUcitavamPodatke] = useState(false);
 
+  // izbacili smo lazne podatke 
   const [mojProfil, setMojProfil] = useState({
-    username: "ksenija_dev",
-    fullName: "Ksenija",
-    bio: "opis 💻✨",
-    avatar: "/slike/radnja.jfif",
+    username: "",
+    fullName: "",
+    bio: "",
+    avatar: "",
     followersCount: 0,
     followingCount: 0
   });
 
-  const [listaPratilaca, setListaPratilaca] = useState([
-    { id: 1, username: "ana_marija", fullName: "Ana Marija", avatar: "/slike/outfit.jpg" },
-    { id: 2, username: "programer_99", fullName: "Marko Marković", avatar: "/slike/radnja.jfif" },
-    { id: 3, username: "neko_tajni", fullName: "Neko", avatar: "/slike/outfit.jpg" }
-  ]);
+  const [listaPratilaca, setListaPratilaca] = useState([]);
+  const [userPostsData, setUserPostsData] = useState([]); 
 
   const [tempPodaci, setTempPodaci] = useState({ username: '', fullName: '', bio: '' });
 
-  // ─── POMOĆNA FUNKCIJA ZA IZVLAČENJE TVOG ID-a IZ TOKENA ───
+  // pomocna fja za izvlacenje ida iz tokena 
   const getMyUserId = () => {
     const token = localStorage.getItem('token');
     if (!token) return null;
@@ -49,7 +47,7 @@ function Profile() {
     }
   };
 
-  // ─── UČITAVANJE PROFILA (ALEKSIN SERVIS) ───
+  // ucitavanje profila
   useEffect(() => {
     const fetchMyProfile = async () => {
       const myUserId = getMyUserId();
@@ -58,8 +56,6 @@ function Profile() {
 
       setUcitavamPodatke(true);
       try {
-        console.log("Token:", token);
-        console.log("MyUserId:", myUserId);
         const response = await fetch(`http://localhost:4000/api/profile/users/${myUserId}`, {
           method: 'GET',
           headers: { 
@@ -73,8 +69,8 @@ function Profile() {
           setMojProfil({
             username:       data.user.username        || 'Nepoznato',
             fullName:       `${data.user.first_name} ${data.user.last_name}` || 'Nepoznato',
-            bio:            data.user.bio             || 'Nema biografije',
-            avatar:         data.user.profile_image_url || '/slike/radnja.jfif',
+            bio:            data.user.bio             || '',
+            avatar:         data.user.profile_image_url || '',
             followersCount: data.user.followers_count || 0,
             followingCount: data.user.following_count || 0,
           });
@@ -91,7 +87,7 @@ function Profile() {
     }
   }, [tipProfila, pretrazeniKorisnik]);
 
-  // ─── LOGOUT ───
+  // Logout
   const handlePraviLogout = async () => {
     const token = localStorage.getItem('token');
     const refreshToken = localStorage.getItem('refreshToken');
@@ -116,10 +112,10 @@ function Profile() {
     }
   };
 
-  // ─── PRAĆENJE KORISNIKA (ANIN SERVIS) ───
+  // pracenje korisnika
   const handleFollowClick = async () => {
     const myId = getMyUserId();
-    const token = localStorage.getItem('token'); // DODATO OVO
+    const token = localStorage.getItem('token');
     const targetId = pretrazeniKorisnik?.id || 2; 
 
     if (!myId || !token) return;
@@ -130,7 +126,7 @@ function Profile() {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`, // DODATO OVO DA PROĐEMO GATEWAY
+            'Authorization': `Bearer ${token}`,
             'x-user-id': String(myId)
           },
           body: JSON.stringify({ following_id: targetId })
@@ -141,7 +137,7 @@ function Profile() {
           method: 'DELETE',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`, // DODATO OVO
+            'Authorization': `Bearer ${token}`,
             'x-user-id': String(myId) 
           },
           body: JSON.stringify({ following_id: targetId })
@@ -153,10 +149,10 @@ function Profile() {
     }
   };
 
-  // ─── BLOKIRANJE KORISNIKA (ANIN SERVIS) ───
+  // blokiranje korisnika
   const handleBlockClick = async () => {
     const myId = getMyUserId();
-    const token = localStorage.getItem('token'); // DODATO OVO
+    const token = localStorage.getItem('token');
     const targetId = pretrazeniKorisnik?.id || 2;
 
     if (!myId || !token) return;
@@ -167,7 +163,7 @@ function Profile() {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`, // DODATO OVO
+            'Authorization': `Bearer ${token}`,
             'x-user-id': String(myId) 
           },
           body: JSON.stringify({ blocked_id: targetId }) 
@@ -180,21 +176,17 @@ function Profile() {
       console.error("Greška u Aninom Block servisu:", error);
     }
   };
-  const userProfile = {
-    username: pretrazeniKorisnik ? pretrazeniKorisnik.username : (tipProfila === 'moj' ? mojProfil.username : (tipProfila === 'javni' ? "ana_marija" : "neko_tajni")),
-    fullName: pretrazeniKorisnik ? pretrazeniKorisnik.fullName : (tipProfila === 'moj' ? mojProfil.fullName : (tipProfila === 'javni' ? "Ana Marija" : "Neko")),
-    bio: tipProfila === 'moj' ? mojProfil.bio : "Samo pozitivna energija ✨",
-    followers: pretrazeniKorisnik ? 450 : (tipProfila === 'moj' ? mojProfil.followersCount : 890),
-    following: pretrazeniKorisnik ? 320 : (tipProfila === 'moj' ? mojProfil.followingCount : 400),
-    posts: pretrazeniKorisnik ? 3 : (tipProfila === 'moj' ? 4 : 0),
-    avatar: pretrazeniKorisnik ? pretrazeniKorisnik.avatar : (tipProfila === 'moj' ? mojProfil.avatar : "/slike/outfit.jpg")
-  };
 
-  const userPostsData = [
-    { id: 1, media: ["/slike/radnja.jfif", "/slike/slikaa.jpg"] },
-    { id: 2, media: ["/slike/outfit.jpg"] },
-    { id: 3, media: ["/slike/macka.jfif"] }
-  ];
+  // dinamicki podaci za prikaz 
+  const userProfile = {
+    username: pretrazeniKorisnik ? pretrazeniKorisnik.username : mojProfil.username,
+    fullName: pretrazeniKorisnik ? pretrazeniKorisnik.fullName : mojProfil.fullName,
+    bio: pretrazeniKorisnik ? pretrazeniKorisnik.bio : mojProfil.bio,
+    followers: pretrazeniKorisnik ? (pretrazeniKorisnik.followersCount || 0) : mojProfil.followersCount,
+    following: pretrazeniKorisnik ? (pretrazeniKorisnik.followingCount || 0) : mojProfil.followingCount,
+    posts: pretrazeniKorisnik ? 0 : userPostsData.length,
+    avatar: pretrazeniKorisnik ? pretrazeniKorisnik.avatar : mojProfil.avatar
+  };
 
   const ukloniPratioca = (id) => {
     setListaPratilaca(listaPratilaca.filter(p => p.id !== id));
@@ -260,7 +252,11 @@ function Profile() {
       </div>
 
       <div style={profileInfoStyle}>
-        <img src={userProfile.avatar} alt="Avatar" style={avatarStyle} />
+        {userProfile.avatar ? (
+           <img src={userProfile.avatar} alt="Avatar" style={avatarStyle} />
+        ) : (
+           <div style={{...avatarStyle, backgroundColor: '#efefef', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999'}}>Nema</div>
+        )}
         <div style={statsContainerStyle}>
           <div style={statItemStyle}>
             <strong>{mozeDaVidiSlike ? userPostsData.length : 0}</strong><span style={statLabelStyle}>objava</span>
@@ -290,7 +286,6 @@ function Profile() {
             <button onClick={handleFollowClick} style={statusPracenja === 'ne_prati' ? followButtonStyle : followingButtonStyle}>
               {statusPracenja === 'ne_prati' ? 'Zaprati' : (statusPracenja === 'poslat_zahtev' ? 'Zahtev poslat' : 'Praćenje')}
             </button>
-            {/* OVDJE SMO ZAMENILI OBIČAN ONCLICK SA handleBlockClick */}
             <button onClick={handleBlockClick} style={{...followingButtonStyle, marginLeft: '5px', color: blokiran ? 'white' : 'red', backgroundColor: blokiran ? 'red' : '#efefef'}}>
               {blokiran ? 'Odblokiraj' : 'Blokiraj'}
             </button>
@@ -375,7 +370,7 @@ function Profile() {
               <button onClick={() => setPrikaziPratioce(false)} style={closeBtnStyle}>✕</button>
             </div>
             <div style={listContainerStyle}>
-              {listaPratilaca.map(korisnik => (
+              {listaPratilaca.length === 0 ? <p style={{textAlign:'center', color:'gray'}}>Nema pratilaca</p> : listaPratilaca.map(korisnik => (
                 <div key={korisnik.id} style={userRowStyle}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <img src={korisnik.avatar} alt="avatar" style={listAvatarStyle} />
@@ -402,7 +397,7 @@ function Profile() {
               <button onClick={() => setPrikaziPrati(false)} style={closeBtnStyle}>✕</button>
             </div>
             <div style={listContainerStyle}>
-              {listaPratilaca.map(korisnik => (
+              {listaPratilaca.length === 0 ? <p style={{textAlign:'center', color:'gray'}}>Ne prati nikoga</p> : listaPratilaca.map(korisnik => (
                 <div key={korisnik.id} style={userRowStyle}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <img src={korisnik.avatar} alt="avatar" style={listAvatarStyle} />

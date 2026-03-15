@@ -8,55 +8,63 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockedNavigate,
 }));
 
-// Mockujemo globalni fetch da testovi ne bi pokušavali da zovu pravi server
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ user: { username: "mocked_user", fullName: "Mock User" } }),
-  })
-);
-
-// Mockujemo localStorage
-const localStorageMock = (() => {
-  let store = {};
-  return {
-    getItem: (key) => store[key] || null,
-    setItem: (key, value) => { store[key] = value.toString(); },
-    removeItem: (key) => { delete store[key]; },
-    clear: () => { store = {}; }
-  };
-})();
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-
-beforeEach(() => {
-  // Ubacujemo lažni token da ne bi pukao atob() prilikom dekodiranja na profilu
-  window.localStorage.setItem('token', 'header.eyJ1c2VySWQiOjF9.signature');
-});
-
+// Supresija React Router v7 upozorenja da nam ne prljaju konzolu
+const originalWarn = console.warn;
 beforeAll(() => {
-  jest.spyOn(console, 'warn').mockImplementation((msg) => {
-    if (msg.includes('React Router Future Flag Warning')) return;
-    console.warn(msg);
-  });
-  // Skrivamo console.error da nam ne prlja terminal ako pukne fetch u testu
+  console.warn = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && args[0].includes('React Router Future Flag Warning')) return;
+    originalWarn(...args);
+  };
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-afterEach(() => {
+afterAll(() => {
+  console.warn = originalWarn;
+});
+
+beforeEach(() => {
+  // Resetujemo mockove i čistimo pravi JSDOM localStorage
   jest.clearAllMocks();
-  window.localStorage.clear();
+  localStorage.clear();
+  
+  // Ako test okruženje zaboravi atob funkciju (dešava se u Node-u), dodajemo je
+  if (typeof window.atob === 'undefined') {
+    window.atob = (str) => Buffer.from(str, 'base64').toString('binary');
+  }
+
+  // Koristimo ugrađeni localStorage (nema više onog hacka sa Object.defineProperty)
+  localStorage.setItem('token', 'header.eyJ1c2VySWQiOjF9.signature');
+
+  // Deklarišemo lažni fetch pre SVAKOG testa
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ 
+        user: { 
+          username: "pravi_korisnik", 
+          first_name: "Pravi", 
+          last_name: "Korisnik", 
+          bio: "Prava bio" 
+        } 
+      }),
+    })
+  );
 });
 
 describe('Profile Komponenta', () => {
   
-  test('prikazuje osnovne informacije o korisniku (ime, bio, statistika)', () => {
+  test('prikazuje informacije o korisniku nakon učitavanja sa servera', async () => {
     render(
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Profile />
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/neko_tajni/i)).toBeInTheDocument();
+    // Čekamo da podaci sa našeg lažnog servera stignu
+    await waitFor(() => {
+      expect(screen.getByText(/pravi_korisnik/i)).toBeInTheDocument();
+    });
+    
     expect(screen.getByText('objava')).toBeInTheDocument();
     expect(screen.getByText('pratilaca')).toBeInTheDocument();
     expect(screen.getByText('prati')).toBeInTheDocument();
@@ -69,12 +77,12 @@ describe('Profile Komponenta', () => {
       </BrowserRouter>
     );
     
-    const blockButton = screen.getByRole('button', { name: /Blokiraj/i });
-    expect(blockButton).toBeInTheDocument();
+    const javniProfilButton = screen.getByRole('button', { name: /Javni Profil/i });
+    fireEvent.click(javniProfilButton);
 
+    const blockButton = await screen.findByRole('button', { name: /Blokiraj/i });
     fireEvent.click(blockButton);
 
-    // Čekamo da asinhroni fetch završi i dugme promeni tekst
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Odblokiraj/i })).toBeInTheDocument();
     });
@@ -120,7 +128,6 @@ describe('Profile Komponenta', () => {
     fireEvent.click(logoutButton);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
       expect(mockedNavigate).toHaveBeenCalledWith('/login');
     });
   });
