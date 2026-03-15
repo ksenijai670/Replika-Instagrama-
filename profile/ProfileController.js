@@ -8,16 +8,27 @@ app.use(express.json());
 
 // ─── Auth middleware ──────────────────────────────────────
 const authMiddleware = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
+  // Prvo proveravamo da li je prosleđen x-user-id (novi, mikroservisni način)
+  const userId = req.headers['x-user-id'];
+  
+  if (userId) {
+    req.user = {
+      userId: parseInt(userId),
+      username: req.headers['x-username'] || '',
+    };
+    return next(); // Pusti zahtev dalje!
+  }
 
+  // Ako nema x-user-id, probamo stari način sa tokenom
+  const token = req.headers['authorization']?.split(' ')[1];
   if (!token) {
-    return res.status(401).json({ error: 'Access token missing' });
+    return res.status(401).json({ error: 'Unauthorized: No token or x-user-id' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     req.user = decoded;
-    next();
+    return next(); // OVO JE FALILO KOD ALEKSE! Zato je tebi visilo učitavanje!
   } catch {
     return res.status(403).json({ error: 'Invalid or expired token' });
   }

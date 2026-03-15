@@ -15,55 +15,110 @@ const FOLLOW_SERVICE_URL = process.env.FOLLOW_SERVICE_URL || 'http://follow-serv
 const POST_SERVICE_URL = process.env.POST_SERVICE_URL || 'http://post-service:3006';
 
 // ─── Follow service helpers ───────────────────────────────
+
 const isBlocked = async (userA, userB) => {
-  const res = await fetch(
-    `${FOLLOW_SERVICE_URL}/blocks/check?userA=${userA}&userB=${userB}`
-  );
-  const data = await res.json();
-  return data.blocked === true;
+  try {
+    const res = await fetch(`${FOLLOW_SERVICE_URL}/blocks/status?userB=${userB}`, {
+      headers: { 'x-user-id': String(userA) } // DODATO OVO
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.blocked === true;
+  } catch (err) {
+    console.error(`[isBlocked] Greška: ${err.message}`);
+    return false;
+  }
 };
 
 const getFollowersCount = async (userId) => {
-  const res = await fetch(`${FOLLOW_SERVICE_URL}/followers/count/${userId}`);
-  const data = await res.json();
-  return data.count ?? 0;
+  try {
+    const res = await fetch(`${FOLLOW_SERVICE_URL}/followers/count/${userId}`, {
+      headers: { 'x-user-id': String(userId) } // DODATO OVO
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.count ?? 0;
+  } catch (err) {
+    console.error(`[getFollowersCount] Greška: ${err.message}`);
+    return 0;
+  }
 };
 
 const getFollowingCount = async (userId) => {
-  const res = await fetch(`${FOLLOW_SERVICE_URL}/following/count/${userId}`);
-  const data = await res.json();
-  return data.count ?? 0;
+  try {
+    const res = await fetch(`${FOLLOW_SERVICE_URL}/following/count/${userId}`, {
+      headers: { 'x-user-id': String(userId) } // DODATO OVO
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.count ?? 0;
+  } catch (err) {
+    console.error(`[getFollowingCount] Greška: ${err.message}`);
+    return 0;
+  }
 };
 
 const getIsFollowing = async (requesterId, userId) => {
-  const res = await fetch(
-    `${FOLLOW_SERVICE_URL}/following/check?followerId=${requesterId}&followingId=${userId}`
-  );
-  const data = await res.json();
-  return data.isFollowing === true;
+  try {
+    const res = await fetch(`${FOLLOW_SERVICE_URL}/following/status?followerId=${requesterId}&followingId=${userId}`, {
+      headers: { 'x-user-id': String(requesterId) } // DODATO OVO
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.isFollowing === true;
+  } catch (err) {
+    console.error(`[getIsFollowing] Greška: ${err.message}`);
+    return false;
+  }
 };
 
 const getFollowingList = async (userId) => {
-  const res = await fetch(`${FOLLOW_SERVICE_URL}/following/list/${userId}`);
-  const data = await res.json();
-  return data.following || [];
+  try {
+    const res = await fetch(`${FOLLOW_SERVICE_URL}/following/list/${userId}`, {
+      headers: { 'x-user-id': String(userId) } // DODATO OVO
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.following || [];
+  } catch (err) {
+    console.error(`[getFollowingList] Greška: ${err.message}`);
+    return [];
+  }
 };
 
 const getFollowersList = async (userId) => {
-  const res = await fetch(`${FOLLOW_SERVICE_URL}/followers/list/${userId}`);
-  const data = await res.json();
-  return data.followers || [];
+  try {
+    const res = await fetch(`${FOLLOW_SERVICE_URL}/followers/list/${userId}`, {
+      headers: { 'x-user-id': String(userId) } // DODATO OVO
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.followers || [];
+  } catch (err) {
+    console.error(`[getFollowersList] Greška: ${err.message}`);
+    return [];
+  }
 };
 
 // ─── Post service helpers ─────────────────────────────────
+
 const getPostsByUserId = async (userId) => {
-  const res = await fetch(`${POST_SERVICE_URL}/posts/user/${userId}`);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data || [];
+  try {
+    // Verovatno i Emi treba x-user-id, pa smo dodali i njoj za svaki slučaj
+    const res = await fetch(`${POST_SERVICE_URL}/posts/user/${userId}`, {
+      headers: { 'x-user-id': String(userId) }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data || [];
+  } catch (err) {
+    console.error(`[getPostsByUserId] Greška: ${err.message}`);
+    return [];
+  }
 };
 
 // ─── DB helpers ───────────────────────────────────────────
+
 const getUsersByIds = async (ids) => {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
@@ -77,6 +132,7 @@ const getUsersByIds = async (ids) => {
 };
 
 // ─── Search ───────────────────────────────────────────────
+
 const searchUsers = async (query, requesterId) => {
   const like = `%${query}%`;
 
@@ -103,6 +159,7 @@ const searchUsers = async (query, requesterId) => {
 };
 
 // ─── User Info ────────────────────────────────────────────
+
 const getUserInfo = async (userId, requesterId) => {
   const [userRows] = await pool.execute(
     `SELECT
@@ -119,7 +176,7 @@ const getUserInfo = async (userId, requesterId) => {
   const blocked = await isBlocked(requesterId, userId);
   if (blocked) return { error: 'User not found', status: 404 };
 
-  // Sve paraleno — follow podaci i postovi
+  // Sve paralelno — follow podaci i postovi
   const [
     followers_count,
     following_count,
@@ -151,6 +208,7 @@ const getUserInfo = async (userId, requesterId) => {
 };
 
 // ─── Followers list ───────────────────────────────────────
+
 const getFollowers = async (userId, requesterId) => {
   const blocked = await isBlocked(requesterId, userId);
   if (blocked) return { error: 'User not found', status: 404 };
@@ -162,6 +220,7 @@ const getFollowers = async (userId, requesterId) => {
 };
 
 // ─── Following list ───────────────────────────────────────
+
 const getFollowing = async (userId, requesterId) => {
   const blocked = await isBlocked(requesterId, userId);
   if (blocked) return { error: 'User not found', status: 404 };
