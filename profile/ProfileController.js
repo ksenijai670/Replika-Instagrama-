@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { searchUsers, getUserInfo, getFollowers, getFollowing } = require('./ProfileModel');
+const { searchUsers, getUserInfo, getFollowers, getFollowing, updateUserProfile } = require('./ProfileModel');
 
 const app = express();
 app.use(express.json());
@@ -69,7 +69,8 @@ app.get('/users/:userId', authMiddleware, async (req, res) => {
   }
 
   try {
-    const result = await getUserInfo(targetUserId, req.user.userId);
+    const token = req.headers['authorization']?.split(' ')[1] || '';
+    const result = await getUserInfo(targetUserId, req.user.userId, token);
 
     if (result.error) {
       return res.status(result.status).json({ error: result.error });
@@ -126,4 +127,14 @@ app.get('/users/:userId/following', authMiddleware, async (req, res) => {
   }
 });
 
+app.put('/users/me', authMiddleware, async (req, res) => {
+  const { first_name, last_name, bio, profile_image_url } = req.body;
+  try {
+    await updateUserProfile(req.user.userId, first_name, last_name, bio, profile_image_url);
+    return res.status(200).json({ message: 'Profil uspesno azuriran' });
+  } catch (err) {
+    console.error('[UpdateProfile] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = app;
