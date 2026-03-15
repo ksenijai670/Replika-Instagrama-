@@ -227,14 +227,18 @@ services:
     image: alexa151/faks-projekat-pisibp:Feed-${IMAGE_TAG}
     restart: unless-stopped
     environment:
-      DB_HOST: mysql-post_service_db
-      DB_USER: post_service_db_user
-      DB_PASSWORD: post_service_db_password
-      DB_NAME: post_service_db
       PORT: 3015
+      FOLLOW_SERVICE_URL: http://follow-service:3004
+      POST_SERVICE_URL: http://post-service:3006
+      PROFILE_SERVICE_URL: http://profile:3010
+      INTERACTIONS_SERVICE_URL: http://interactions-service:3005
+      MINIO_PUBLIC_URL: http://minio:9000
+      MINIO_BUCKET: posts-media
     depends_on:
-      mysql-post_service_db:
-        condition: service_healthy
+      - follow-service
+      - post-service
+      - profile
+      - interactions-service
 
   # ─── API Gateway ──────────────────────────────────────────
   gateway:
