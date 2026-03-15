@@ -1,13 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function Notifications() {
-  const [zahtevi, setZahtevi] = useState([
-    { id: 1, username: "neko_tajni", fullName: "Neko", avatar: "/slike/radnja.jfif" },
-    { id: 2, username: "programer_99", fullName: "Marko", avatar: "/slike/outfit.jpg" }
-  ]);
+  const [zahtevi, setZahtevi] = useState([]);
+  const [ucitavam, setUcitavam] = useState(true);
 
-  const ukloniZahtev = (id) => {
-    setZahtevi(zahtevi.filter(z => z.id !== id));
+  const getMyUserId = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const payloadBase64 = token.split('.')[1];
+      const decodedPayload = JSON.parse(atob(payloadBase64));
+      return decodedPayload.userId;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const povuciNotifikacije = async () => {
+      const token = localStorage.getItem('token');
+      const myId = getMyUserId();
+
+      if (!token || !myId) {
+        setUcitavam(false);
+        return;
+      }
+
+      try {
+        
+        const response = await fetch(`http://localhost:4000/api/follow/notifications/${myId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-user-id': String(myId)
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setZahtevi(data.pending_requests || []);
+        }
+      } catch (error) {
+        console.error("Greška pri povlačenju notifikacija:", error);
+      } finally {
+        setUcitavam(false);
+      }
+    };
+
+    povuciNotifikacije();
+  }, []);
+
+  const obradiZahtev = async (follower_id, akcija) => {
+    const token = localStorage.getItem('token');
+    const myId = getMyUserId();
+    if (!token || !myId) return;
+
+    // Biramo pravu rutu i metodu na osnovu Aninog server.js
+    const url = akcija === 'accept' 
+      ? 'http://localhost:4000/api/follow/accept' 
+      : 'http://localhost:4000/api/follow/reject';
+    
+    const method = akcija === 'accept' ? 'PUT' : 'DELETE';
+
+    try {
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'x-user-id': String(myId)
+        },
+        body: JSON.stringify({ follower_id: follower_id })
+      });
+
+      if (response.ok) {
+        
+        setZahtevi(zahtevi.filter(z => z.follower_id !== follower_id));
+      }
+    } catch (error) {
+      console.error(`Greška pri ${akcija} zahteva:`, error);
+    }
   };
 
   return (
@@ -18,21 +90,25 @@ function Notifications() {
 
       <div style={contentStyle}>
         <h4 style={{ color: 'gray', marginTop: 0 }}>Zahtevi za praćenje</h4>
-        {zahtevi.length === 0 ? (
+        {ucitavam ? (
+          <p style={{ textAlign: 'center', color: 'gray', marginTop: '20px' }}>Učitavanje...</p>
+        ) : zahtevi.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'gray', marginTop: '20px' }}>Nema novih zahteva.</p>
         ) : (
-          zahtevi.map(zahtev => (
-            <div key={zahtev.id} style={rowStyle}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <img src={zahtev.avatar} alt="avatar" style={avatarStyle} />
-                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{zahtev.username}</span>
+          zahtevi.map(zahtev => {
+            return (
+              <div key={zahtev.follower_id} style={rowStyle}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <img src={zahtev.avatar || "/slike/outfit.jpg"} alt="avatar" style={avatarStyle} />
+                  <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{zahtev.username}</span>
+                </div>
+                <div>
+                  <button onClick={() => obradiZahtev(zahtev.follower_id, 'accept')} style={acceptBtnStyle}>Prihvati</button>
+                  <button onClick={() => obradiZahtev(zahtev.follower_id, 'reject')} style={rejectBtnStyle}>✕</button>
+                </div>
               </div>
-              <div>
-                <button onClick={() => ukloniZahtev(zahtev.id)} style={acceptBtnStyle}>Prihvati</button>
-                <button onClick={() => ukloniZahtev(zahtev.id)} style={rejectBtnStyle}>✕</button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
