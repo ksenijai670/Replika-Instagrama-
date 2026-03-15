@@ -13,10 +13,21 @@ const buildMediaUrl = (mediaKey) =>
   `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${mediaKey}`;
 
 const getFollowingIds = async (userId) => {
-  const res = await fetch(`${FOLLOW_SERVICE_URL}/following/list/${userId}`);
-  if (!res.ok) return [];
+  const res = await fetch(`${FOLLOW_SERVICE_URL}/follow/following`, {
+    method: 'GET',
+    headers: {
+      'x-user-id': String(userId),
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    console.error('Follow service error:', res.status);
+    return [];
+  }
+
   const data = await res.json();
-  return data.following || [];
+  return Array.isArray(data.following) ? data.following : [];
 };
 
 const getPostsByUserId = async (userId) => {
