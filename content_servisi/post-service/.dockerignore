@@ -12,7 +12,9 @@ Dockerfile
 
 uploads
 
+tests
 coverage
+
 dist
 build
 
