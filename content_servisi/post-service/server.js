@@ -32,6 +32,26 @@ async function ensureBucket() {
   } else {
     console.log(`Bucket ${bucket} već postoji`);
   }
+
+  //dodat je pristup 
+  const policy = {
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: { AWS: ["*"] },
+        Action: ["s3:GetObject"],
+        Resource: [`arn:aws:s3:::${bucket}/*`]
+      }
+    ]
+  };
+  
+  try {
+    await minioClient.setBucketPolicy(bucket, JSON.stringify(policy));
+    console.log(`Bucket ${bucket} je uspešno postavljen kao javan`);
+  } catch (err) {
+    console.error("Greška pri postavljanju public policy-ja za MinIO:", err);
+  }
 }
 
 //fs.mkdirSync(uploadDir, { recursive: true });
