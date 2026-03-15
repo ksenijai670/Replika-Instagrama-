@@ -58,20 +58,25 @@ function Profile() {
 
       setUcitavamPodatke(true);
       try {
-        const response = await fetch(`http://localhost:4000/api/users/${myUserId}`, {
+        console.log("Token:", token);
+        console.log("MyUserId:", myUserId);
+        const response = await fetch(`http://localhost:4000/api/profile/users/${myUserId}`, {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'x-user-id': String(myUserId) 
+          }
         });
 
         if (response.ok) {
           const data = await response.json();
           setMojProfil({
-            username: data.user.username || "Nepoznato",
-            fullName: data.user.fullName || "Nepoznato",
-            bio: data.user.bio || "Nema biografije",
-            avatar: data.user.avatarUrl || "/slike/radnja.jfif", 
-            followersCount: data.user.followersCount || 0,
-            followingCount: data.user.followingCount || 0
+            username:       data.user.username        || 'Nepoznato',
+            fullName:       `${data.user.first_name} ${data.user.last_name}` || 'Nepoznato',
+            bio:            data.user.bio             || 'Nema biografije',
+            avatar:         data.user.profile_image_url || '/slike/radnja.jfif',
+            followersCount: data.user.followers_count || 0,
+            followingCount: data.user.following_count || 0,
           });
         }
       } catch (error) {
@@ -114,32 +119,29 @@ function Profile() {
   // ─── PRAĆENJE KORISNIKA (ANIN SERVIS) ───
   const handleFollowClick = async () => {
     const myId = getMyUserId();
-    // Ako pretraženi korisnik nema ID (zbog testiranja), koristimo neki lažni (npr. 2)
+    const token = localStorage.getItem('token'); // DODATO OVO
     const targetId = pretrazeniKorisnik?.id || 2; 
 
-    if (!myId) {
-      console.error("Nisi ulogovana!");
-      return;
-    }
+    if (!myId || !token) return;
 
     try {
       if (statusPracenja === 'ne_prati') {
-        // Šaljemo ZAHTEV ZA PRAĆENJE (POST)
         await fetch('http://localhost:4000/api/follow', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'x-user-id': String(myId) // Anin specijalni header
+            'Authorization': `Bearer ${token}`, // DODATO OVO DA PROĐEMO GATEWAY
+            'x-user-id': String(myId)
           },
           body: JSON.stringify({ following_id: targetId })
         });
         setStatusPracenja(tipProfila === 'privatni' ? 'poslat_zahtev' : 'prati');
       } else {
-        // Šaljemo PREKID PRAĆENJA (DELETE)
         await fetch('http://localhost:4000/api/unfollow', {
           method: 'DELETE',
           headers: { 
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`, // DODATO OVO
             'x-user-id': String(myId) 
           },
           body: JSON.stringify({ following_id: targetId })
@@ -154,31 +156,30 @@ function Profile() {
   // ─── BLOKIRANJE KORISNIKA (ANIN SERVIS) ───
   const handleBlockClick = async () => {
     const myId = getMyUserId();
+    const token = localStorage.getItem('token'); // DODATO OVO
     const targetId = pretrazeniKorisnik?.id || 2;
 
-    if (!myId) return;
+    if (!myId || !token) return;
 
     try {
       if (!blokiran) {
-        // BLOKIRAJ KORISNIKA (POST)
         await fetch('http://localhost:4000/api/block', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`, // DODATO OVO
             'x-user-id': String(myId) 
           },
-          body: JSON.stringify({ blocked_id: targetId }) // Pretpostavljamo da Anin servis očekuje blocked_id u body-ju
+          body: JSON.stringify({ blocked_id: targetId }) 
         });
         setBlokiran(true);
       } else {
-        // ODBLOKIRAJ (Samo vizuelno dok ne dobijemo rutu za unblock, obično DELETE /block)
         setBlokiran(false);
       }
     } catch (error) {
       console.error("Greška u Aninom Block servisu:", error);
     }
   };
-
   const userProfile = {
     username: pretrazeniKorisnik ? pretrazeniKorisnik.username : (tipProfila === 'moj' ? mojProfil.username : (tipProfila === 'javni' ? "ana_marija" : "neko_tajni")),
     fullName: pretrazeniKorisnik ? pretrazeniKorisnik.fullName : (tipProfila === 'moj' ? mojProfil.fullName : (tipProfila === 'javni' ? "Ana Marija" : "Neko")),

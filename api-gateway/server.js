@@ -13,7 +13,7 @@ const app = express();
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-username'],
   credentials: true,
 }));
 
@@ -52,58 +52,75 @@ app.use('/api/authentication/login',
   proxy(SERVICES.auth + '/login')
 );
 
-app.use('/auth/register',
-  authLimiter,
-  proxy(SERVICES.auth + '/register')
-);
-
-app.use('/auth/login',
-  authLimiter,
-  proxy(SERVICES.auth + '/login')
-);
-
-app.use('/auth/logout',
-  authMiddleware,
-  proxy(SERVICES.auth, { '^/auth/logout': '/logout' })
-);
-
-app.use('/auth/me',
-  authMiddleware,
-  proxy(SERVICES.auth, { '^/auth/me': '/me' })
-);
-
 app.use('/api/authentication/logout',
   authMiddleware,
-  proxy(SERVICES.auth, { '^/api/authentication/logout': '/logout' })
+  proxy(SERVICES.auth +  '/logout')
 );
 
 app.use('/api/authentication/me',
   authMiddleware,
-  proxy(SERVICES.auth, { '^/api/authentication/me': '/me' })
+  proxy(SERVICES.auth +  '/me')
 );
 
 // Profile — search, user info, followers, following
-app.use('/profile',
-  authMiddleware,
-  proxy(SERVICES.profile, { '^/profile': '' })
-);
-
 app.use('/api/profile',
   authMiddleware,
-  proxy(SERVICES.profile, { '^/api/profile': '' })
+  createProxyMiddleware({
+    target: SERVICES.profile,
+    changeOrigin: true,
+    parseReqBody: false,
+    pathRewrite: { '^/api/profile': '' },
+    on: {
+      error: (err, req, res) => {
+        console.error(`[Gateway] Proxy error → ${SERVICES.profile}:`, err.message);
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Service temporarily unavailable' });
+        }
+      },
+    },
+  })
+);
+
+app.use('/profile',
+  authMiddleware,
+  createProxyMiddleware({
+    target: SERVICES.profile,
+    changeOrigin: true,
+    parseReqBody: false,
+    pathRewrite: { '^/profile': '' },
+    on: {
+      error: (err, req, res) => {
+        console.error(`[Gateway] Proxy error → ${SERVICES.profile}:`, err.message);
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Service temporarily unavailable' });
+        }
+      },
+    },
+  })
 );
 
 // Follow — follow, unfollow, block, notifications
-app.use('/follow',
+app.use(['/api/follow', '/api/unfollow', '/api/block'],
   authMiddleware,
-  proxy(SERVICES.follow, { '^/follow': '' })
+  createProxyMiddleware({
+    target: SERVICES.follow,
+    changeOrigin: true,
+    parseReqBody: false,
+    pathRewrite: {
+      '^/api/follow': '/follow',
+      '^/api/unfollow': '/unfollow',
+      '^/api/block': '/block'
+    },
+    on: {
+      error: (err, req, res) => {
+        console.error(`[Gateway] Follow Proxy error -> ${SERVICES.follow}:`, err.message);
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Follow service temporarily unavailable' });
+        }
+      },
+    },
+  })
 );
-
-app.use('/api/follow',
-  authMiddleware,
-  proxy(SERVICES.follow, { '^/api/follow': '' })
-);
-
 // Posts — kreiranje, brisanje, pregled objava
 app.use('/posts',
   authMiddleware,
