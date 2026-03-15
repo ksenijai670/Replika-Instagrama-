@@ -1,32 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 function CreatePost() {
   const [opis, setOpis] = useState('');
-  const [slike, setSlike] = useState([]);
+  const [slike, setSlike] = useState([]); // file objekti pravi
+  const [previewSlika, setPreviewSlika] = useState([]); // urlovi za prikaz korisniku 
+  const [ucitavam, setUcitavam] = useState(false);
+  
+  const fileInputRef = useRef(null);
 
-  const handleObjavi = () => {
-    if (slike.length === 0) {
-      alert("Moraš dodati barem jednu sliku!");
-      return;
+  
+  const getMyUserId = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const payloadBase64 = token.split('.')[1];
+      const decodedPayload = JSON.parse(atob(payloadBase64));
+      return decodedPayload.userId;
+    } catch (error) {
+      return null;
     }
-    // Ovde ce kasnije icci poziv ka backendu!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    alert("Bravo! Objava je uspesno kreirana (Simulacija za sada).");
-    setOpis('');
-    setSlike([]);
   };
 
-  const simulirajDodavanjeSlike = () => {
-    // Pravilo iz specifikacije: max 20 slika!
+  
+  const otvoriProzorZaSlike = () => {
     if (slike.length >= 20) {
-      alert("Možeš dodati najviše 20 elemenata po specifikaciji!");
+      alert("Možeš dodati najviše 20 fajlova po specifikaciji!");
       return;
     }
-    // Dodala sam test sliku cisto da vidim vizuelno kako radi
-    setSlike([...slike, "/slike/radnja.jfif"]); 
+    fileInputRef.current.click();
+  };
+
+  
+  const handleIzborSlika = (e) => {
+    const izabraniFajlovi = Array.from(e.target.files);
+    
+    // Provera broja fajlova (max 20 ukupno)
+    if (slike.length + izabraniFajlovi.length > 20) {
+      alert("Maksimalan broj fajlova po objavi je 20!");
+      return;
+    }
+
+    // cuvanje pravih fajlova za slanje
+    setSlike((prev) => [...prev, ...izabraniFajlovi]);
+
+    
+    const noviPreview = izabraniFajlovi.map((fajl) => URL.createObjectURL(fajl));
+    setPreviewSlika((prev) => [...prev, ...noviPreview]);
+
+    
+    e.target.value = null;
   };
 
   const ukloniSliku = (indexZaBrisanje) => {
     setSlike(slike.filter((_, index) => index !== indexZaBrisanje));
+    setPreviewSlika(previewSlika.filter((_, index) => index !== indexZaBrisanje));
+  };
+
+  // slanje na backend
+  const handleObjavi = async () => {
+    if (slike.length === 0) {
+      alert("Moraš dodati barem jednu sliku!");
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    const myUserId = getMyUserId();
+
+    if (!token || !myUserId) {
+      alert("Morate biti ulogovani da biste objavili post!");
+      return;
+    }
+
+    setUcitavam(true);
+
+    const formData = new FormData();
+    formData.append('caption', opis);
+    
+    slike.forEach((slika) => {
+      formData.append('files', slika);
+    });
+
+    try {
+      const odgovor = await fetch('http://localhost:4000/api/posts', {
+        method: 'POST',
+        headers: {
+          
+          'Authorization': `Bearer ${token}`,
+          'x-user-id': String(myUserId)
+        },
+        body: formData
+      });
+
+      if (odgovor.ok) {
+        alert("Bravo! Objava je uspešno kreirana!");
+        setOpis('');
+        setSlike([]);
+        setPreviewSlika([]);
+      } else {
+        const errorData = await odgovor.json();
+        alert(`Greška pri objavljivanju: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error("Greška na mreži:", error);
+      alert("Došlo je do greške pri komunikaciji sa serverom.");
+    } finally {
+      setUcitavam(false);
+    }
   };
 
   return (
@@ -36,17 +115,27 @@ function CreatePost() {
       </div>
 
       <div style={contentStyle}>
+        {/* SKRIVENI INPUT ZA FAJLOVE */}
+        <input 
+          type="file" 
+          multiple 
+          accept="image/*,video/*" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          onChange={handleIzborSlika}
+        />
+
         {/* DEO ZA DODAVANJE SLIKA */}
-        <div style={imageUploadArea} onClick={simulirajDodavanjeSlike}>
+        <div style={imageUploadArea} onClick={otvoriProzorZaSlike}>
           <span style={{ fontSize: '40px' }}>📸</span>
           <p style={{ margin: '5px 0', fontWeight: 'bold' }}>Klikni da dodaš sliku/video</p>
           <p style={{ fontSize: '12px', color: 'gray', margin: 0 }}>Max 20 fajlova (do 50MB)</p>
         </div>
 
         {/* PREGLED DODATIH SLIKA */}
-        {slike.length > 0 && (
+        {previewSlika.length > 0 && (
           <div style={previewGridStyle}>
-            {slike.map((slika, index) => (
+            {previewSlika.map((slika, index) => (
               <div key={index} style={previewImageContainerStyle}>
                 <img src={slika} alt={`Preview ${index}`} style={previewImageStyle} />
                 <button onClick={() => ukloniSliku(index)} style={removeImageBtnStyle}>×</button>
@@ -61,9 +150,16 @@ function CreatePost() {
           value={opis}
           onChange={(e) => setOpis(e.target.value)}
           style={textareaStyle}
+          disabled={ucitavam}
         />
 
-        <button onClick={handleObjavi} style={publishBtnStyle}>Objavi</button>
+        <button 
+          onClick={handleObjavi} 
+          style={{...publishBtnStyle, backgroundColor: ucitavam ? '#b2dffc' : '#0095f6'}}
+          disabled={ucitavam}
+        >
+          {ucitavam ? 'Objavljivanje...' : 'Objavi'}
+        </button>
       </div>
     </div>
   );
@@ -79,6 +175,6 @@ const previewImageContainerStyle = { position: 'relative', width: '100%', aspect
 const previewImageStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' };
 const removeImageBtnStyle = { position: 'absolute', top: '5px', right: '5px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' };
 const textareaStyle = { width: '100%', height: '100px', padding: '15px', borderRadius: '8px', border: '1px solid #dbdbdb', outline: 'none', resize: 'none', fontSize: '14px', fontFamily: 'inherit' };
-const publishBtnStyle = { width: '100%', padding: '12px', backgroundColor: '#0095f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' };
+const publishBtnStyle = { width: '100%', padding: '12px', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' };
 
 export default CreatePost;
