@@ -1,25 +1,23 @@
 require('dotenv').config();
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { searchUsers, getUserInfo, getFollowers, getFollowing, updateUserProfile } = require('./ProfileModel');
+const { searchUsers, getUserInfo, getFollowers, getFollowing, updateUserProfile, getUsersByIdsPublic } = require('./ProfileModel');
 
 const app = express();
 app.use(express.json());
 
 // ─── Auth middleware ──────────────────────────────────────
 const authMiddleware = (req, res, next) => {
-  // Prvo proveravamo da li je prosleđen x-user-id (novi, mikroservisni način)
   const userId = req.headers['x-user-id'];
-  
+
   if (userId) {
     req.user = {
       userId: parseInt(userId),
       username: req.headers['x-username'] || '',
     };
-    return next(); // Pusti zahtev dalje!
+    return next();
   }
 
-  // Ako nema x-user-id, probamo stari način sa tokenom
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: No token or x-user-id' });
@@ -28,7 +26,7 @@ const authMiddleware = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     req.user = decoded;
-    return next(); // OVO JE FALILO KOD ALEKSE! Zato je tebi visilo učitavanje!
+    return next();
   } catch {
     return res.status(403).json({ error: 'Invalid or expired token' });
   }
@@ -56,6 +54,21 @@ app.get('/search', authMiddleware, async (req, res) => {
     return res.status(200).json({ users });
   } catch (err) {
     console.error('[Search] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Users by IDs (za blocked listu — bez blok provere) ──
+app.post('/users/by-ids', authMiddleware, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids mora biti neprazan niz' });
+  }
+  try {
+    const users = await getUsersByIdsPublic(ids);
+    return res.status(200).json({ users });
+  } catch (err) {
+    console.error('[UsersByIds] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -137,4 +150,5 @@ app.put('/users/me', authMiddleware, async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 module.exports = app;

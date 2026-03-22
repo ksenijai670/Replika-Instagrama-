@@ -15,12 +15,25 @@ const FOLLOW_SERVICE_URL        = process.env.FOLLOW_SERVICE_URL        || 'http
 const POST_SERVICE_URL          = process.env.POST_SERVICE_URL          || 'http://post-service:3006';
 const INTERACTIONS_SERVICE_URL  = process.env.INTERACTIONS_SERVICE_URL  || 'http://interactions-service:3005';
 
-// ─── DB helpers (Pomereno na vrh da bismo mogli da koristimo za komentare!) ───
+// ─── DB helpers ───────────────────────────────────────────
 const getUsersByIds = async (ids) => {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
   const [rows] = await pool.execute(
     `SELECT id, first_name, last_name, username, profile_image_url
+     FROM users
+     WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
+    ids
+  );
+  return rows;
+};
+
+// ─── Blocked list info — zaobilazi isBlocked proveru ─────
+const getUsersByIdsPublic = async (ids) => {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const [rows] = await pool.execute(
+    `SELECT id, username, first_name, last_name, profile_image_url
      FROM users
      WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
     ids
@@ -143,7 +156,6 @@ const getComments = async (postId, userId, token) => {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    // Sortiramo od najnovijeg ka najstarijem
     return data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   } catch (err) {
     console.error(`[getComments] Greška: ${err.message}`);
@@ -163,10 +175,11 @@ const getIsLiked = async (postId, userId, token) => {
     const data = await res.json();
     return data.isLiked === true;
   } catch (err) {
-    console.error(`[getIsLiked] GreÅ¡ka: ${err.message}`);
+    console.error(`[getIsLiked] Greška: ${err.message}`);
     return false;
   }
 };
+
 // ─── Post service helpers ─────────────────────────────────
 
 const getPostsByUserId = async (userId, token) => {
@@ -180,9 +193,7 @@ const getPostsByUserId = async (userId, token) => {
     if (!res.ok) return [];
     const data = await res.json();
 
-    // Popravljamo MinIO URL i dodajemo likes/comments za svaki post
     const postsWithInteractions = await Promise.all(data.map(async (post) => {
-      // Popravljamo minio URL
       if (post.media) {
         post.media = post.media.map(m => ({
           ...m,
@@ -190,26 +201,18 @@ const getPostsByUserId = async (userId, token) => {
         }));
       }
 
-      // Dodajemo likes i comments iz interactions servisa
       const [likes_count, comments, isLiked] = await Promise.all([
         getLikesCount(post.id, userId, token),
         getComments(post.id, userId, token),
-        getIsLiked(post.id, userId, token) // OVO JE DODATO
+        getIsLiked(post.id, userId, token)
       ]);
 
-      // ─── OVO JE NOVO: SPAJANJE KOMENTARA SA PODACIMA KORISNIKA ───
       if (comments.length > 0) {
-        // Izvlačimo sve jedinstvene ID-jeve korisnika koji su komentarisali
         const userIds = [...new Set(comments.map(c => c.userId))];
-        
-        // Povezujemo se sa bazom da uzmemo njihove podatke
         const usersInfo = await getUsersByIds(userIds);
-        
-        // Pravimo rečnik (mapu) za bržu pretragu { 1: {username: 'Ksenija', avatar: '...'} }
         const userMap = {};
         usersInfo.forEach(u => { userMap[u.id] = u; });
 
-        // Ubacujemo podatke u svaki komentar
         comments.forEach(c => {
           if (userMap[c.userId]) {
             c.username = userMap[c.userId].username;
@@ -353,4 +356,5 @@ module.exports = {
   getFollowers,
   getFollowing,
   updateUserProfile,
+  getUsersByIdsPublic, // 👈 novo
 };
