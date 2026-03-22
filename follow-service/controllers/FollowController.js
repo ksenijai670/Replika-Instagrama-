@@ -30,7 +30,7 @@ const FollowController = {
     const follower_id = req.headers['x-user-id'];
     const following_id = req.body.following_id;
     if (!follower_id || !following_id) return res.status(400).json({ error: 'follower_id i following_id su obavezni.' });
-    if (follower_id === following_id) return res.status(400).json({ error: 'Ne možete pratiti sami sebe.' });
+    if (String(follower_id) === String(following_id)) return res.status(400).json({ error: 'Ne možete pratiti sami sebe.' });
     try {
       try { await getProfilePrivacyStatus(following_id, req); }
       catch (err) { return res.status(400).json({ error: 'Nevalidan following_id - korisnik ne postoji.' }); }
@@ -122,7 +122,7 @@ const FollowController = {
     const blocker_id = req.headers['x-user-id'];
     const blocked_id = req.body.blocked_id;
     if (!blocker_id || !blocked_id) return res.status(400).json({ error: 'blocker_id i blocked_id obavezni.' });
-    if (blocker_id === blocked_id) return res.status(400).json({ error: 'Ne možete blokirati sami sebe.' });
+    if (String(blocker_id) === String(blocked_id)) return res.status(400).json({ error: 'Ne možete blokirati sami sebe.' });
     try {
       await FollowModel.createBlock(blocker_id, blocked_id);
       await FollowModel.removeFollowsOnBlock(blocker_id, blocked_id);
@@ -133,7 +133,7 @@ const FollowController = {
     }
   },
 
-  // NEW: Unblock user
+  // odblokiranje
   async unblockUser(req, res) {
     const blocker_id = req.headers['x-user-id'];
     const blocked_id = req.body.blocked_id;
@@ -141,16 +141,15 @@ const FollowController = {
     try {
       const result = await FollowModel.deleteBlock(blocker_id, blocked_id);
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Blokada nije pronađena.' });
-      return res.status(200).json({ message: 'Korisnik je odblokirani.' });
+      return res.status(200).json({ message: 'Korisnik je odblokiran.' });
     } catch (err) { return res.status(500).json({ error: err.message }); }
   },
 
-  // NEW: Get list of blocked users with their profile info
+  // lista blokiranih
   async getBlockedList(req, res) {
     const userId = req.headers['x-user-id'];
     try {
       const blockedIds = await FollowModel.getBlockedList(userId);
-      // Fetch profile info for each blocked user
       const blockedUsers = await Promise.all(blockedIds.map(async (blockedId) => {
         try {
           const response = await fetch(`${PROFILE_SERVICE_URL}/users/${blockedId}`, {

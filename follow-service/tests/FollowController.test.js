@@ -8,6 +8,8 @@ jest.mock('../models/FollowModel', () => ({
   getPendingRequests: jest.fn(),
   createBlock: jest.fn(),
   removeFollowsOnBlock: jest.fn(),
+  deleteBlock: jest.fn(),
+  getBlockedList: jest.fn(),
   getFollowStats: jest.fn(),
   getFollowStatus: jest.fn(),
   getFollowingList: jest.fn(),    
@@ -361,6 +363,125 @@ describe('FollowController - unit tests', () => {
       await FollowController.blockUser(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe('unblockUser', () => {
+    test('400 ako fali blocker_id ili blocked_id', async () => {
+      const req = { body: {}, headers: {} };
+      const res = mockRes();
+
+      await FollowController.unblockUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test('404 ako blokada ne postoji', async () => {
+      FollowModel.deleteBlock.mockResolvedValue({ affectedRows: 0 });
+
+      const req = { body: { blocked_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.unblockUser(req, res);
+
+      expect(FollowModel.deleteBlock).toHaveBeenCalledWith('1', '2');
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    test('200 ako je korisnik uspešno odblokiran', async () => {
+      FollowModel.deleteBlock.mockResolvedValue({ affectedRows: 1 });
+
+      const req = { body: { blocked_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.unblockUser(req, res);
+
+      expect(FollowModel.deleteBlock).toHaveBeenCalledWith('1', '2');
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('500 ako model baci grešku', async () => {
+      FollowModel.deleteBlock.mockRejectedValue(new Error('DB fail'));
+
+      const req = { body: { blocked_id: '2' }, headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.unblockUser(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
+    });
+  });
+
+  describe('getBlockedList', () => {
+    test('200 vraća listu blokiranih korisnika sa podacima profila', async () => {
+      FollowModel.getBlockedList.mockResolvedValue(['2']);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          user: {
+            id: '2',
+            username: 'pera',
+            first_name: 'Pera',
+            last_name: 'Peric',
+            profile_image_url: 'slika.jpg'
+          }
+        })
+      });
+
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getBlockedList(req, res);
+
+      expect(FollowModel.getBlockedList).toHaveBeenCalledWith('1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        blocked: [
+          {
+            id: '2',
+            username: 'pera',
+            first_name: 'Pera',
+            last_name: 'Peric',
+            profile_image_url: 'slika.jpg'
+          }
+        ]
+      });
+    });
+
+    test('vraća fallback podatke ako fetch ne uspe', async () => {
+      FollowModel.getBlockedList.mockResolvedValue(['2']);
+      global.fetch = jest.fn().mockResolvedValue({ ok: false });
+
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getBlockedList(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        blocked: [
+          {
+            id: '2',
+            username: 'Nepoznat',
+            first_name: '',
+            last_name: '',
+            profile_image_url: null
+          }
+        ]
+      });
+    });
+
+    test('500 ako model baci grešku', async () => {
+      FollowModel.getBlockedList.mockRejectedValue(new Error('DB fail'));
+
+      const req = { headers: { 'x-user-id': '1' } };
+      const res = mockRes();
+
+      await FollowController.getBlockedList(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'DB fail' });
     });
   });
 
