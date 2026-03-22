@@ -34,7 +34,7 @@ function Register() {
     const lastName = nameParts.slice(1).join(' ') || '-';
 
     try {
-      // ── Registracija ──
+      // Registracija
       const regRes = await fetch(`${API}/api/authentication/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,7 +60,7 @@ function Register() {
         return;
       }
 
-      // Ako nema slike 
+      // Ako nema slike
       if (!formData.profilePicture) {
         alert("Uspešna registracija!");
         navigate('/login');
@@ -85,7 +85,7 @@ function Register() {
 
       const { accessToken } = await loginRes.json();
 
-      // Upload slike kao post
+      // Upload slike kao post (bez caption-a) 
       const formDataUpload = new FormData();
       formDataUpload.append('files', formData.profilePicture);
 
@@ -103,7 +103,7 @@ function Register() {
 
       const post = await postRes.json();
 
-      //Fix MinIO internog URL-a 
+      // Fix MinIO internog URL-a 
       const rawUrl = post.media?.[0]?.mediaUrl || '';
       const imageUrl = rawUrl.replace('http://minio:9000', 'http://localhost:9000');
 
