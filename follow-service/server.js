@@ -1,16 +1,13 @@
 const express = require('express');
 require('dotenv').config();
 const db = require('./config/db');
-
-// Uvozimo kontroler 
 const FollowController = require('./controllers/FollowController');
 
 const app = express();
-app.use(express.json()); 
+app.use(express.json());
 
 const PORT = process.env.PORT || 3004;
 
-// Testna ruta provera
 app.get('/test-db', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT 1 + 1 AS result');
@@ -20,22 +17,28 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
-// Rute za Praćenje i Blokiranje 
-app.post('/follow', FollowController.followUser);             // Slanje zahteva
-app.put('/follow/accept', FollowController.acceptFollow);      // Prihvatanje zahteva
-app.delete('/follow/reject', FollowController.rejectFollow);   // Odbijanje zahteva
-app.get('/follow/notifications', FollowController.getNotifications); // Lista zahteva
-app.delete('/followers/remove', FollowController.removeFollower); // uklanjanje pratioca
-app.get('/block-status', FollowController.getBlockStatus);        //blok status
-app.get('/relationship-status', FollowController.getRelationshipStatus);  //follow status
-app.delete('/unfollow', FollowController.unfollowUser);       // Prekid praćenja
-app.post('/block', FollowController.blockUser);               // Blokiranje
-app.get('/stats/:userId', FollowController.getStats);         // Statistika
-app.get('/follow/following', FollowController.getFollowing);  // Lista koje pratiš
-app.get('/follow/followers', FollowController.getFollowers);  // Lista ko te prati
-//app.delete('/block', FollowController.unblockUser);           // odblokiranje
-app.delete('/block/unblock', FollowController.unblockUser);   // odblokiranje
-app.get('/block/blocked-list', FollowController.getBlockedList); //lista blokiranih
+// ─── Follow ───────────────────────────────────────────────
+app.post('/follow', FollowController.followUser);
+app.put('/follow/accept', FollowController.acceptFollow);
+app.delete('/follow/reject', FollowController.rejectFollow);
+app.get('/follow/notifications/:userId', FollowController.getNotifications);
+app.get('/follow/following', FollowController.getFollowing);
+app.get('/follow/followers', FollowController.getFollowers);
+app.delete('/followers/remove', FollowController.removeFollower);
+
+// ─── Block ────────────────────────────────────────────────
+app.post('/block', FollowController.blockUser);
+app.delete('/block', FollowController.unblockUser);           // NEW: unblock
+app.delete('/block/unblock', FollowController.unblockUser);   // NEW: alias
+app.get('/block/blocked-list', FollowController.getBlockedList); // NEW: list
+app.get('/block-status', FollowController.getBlockStatus);
+
+// ─── Stats / Relationship ─────────────────────────────────
+app.get('/stats/:userId', FollowController.getStats);
+app.get('/relationship-status', FollowController.getRelationshipStatus);
+
+// ─── Unfollow ─────────────────────────────────────────────
+app.delete('/unfollow', FollowController.unfollowUser);
 
 app.listen(PORT, () => {
   console.log(`Follow servis radi na portu ${PORT}`);

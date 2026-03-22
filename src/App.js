@@ -28,7 +28,6 @@ function App() {
         </h1>
 
         <Routes>
-          {/* OVE STRANICE SU ZAKLJUČANE (DODATO ProtectedRoute) */}
           <Route path="/" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
