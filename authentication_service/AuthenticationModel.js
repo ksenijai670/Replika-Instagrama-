@@ -26,10 +26,11 @@ const USER_FIELDS = 'id, first_name, last_name, username, email, bio, profile_im
 const hashPassword = async (password) => await bcrypt.hash(password, 10);
 const verifyPassword = async (password, hash) => await bcrypt.compare(password, hash);
 
-const createUser = async (firstName, lastName, username, email, passwordHash) => {
+const createUser = async (firstName, lastName, username, email, passwordHash, bio) => {
   await pool.execute(
-    `INSERT INTO users (first_name, last_name, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`,
-    [firstName, lastName, username, email, passwordHash]
+    `INSERT INTO users (first_name, last_name, username, email, password_hash, bio) 
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [firstName, lastName, username, email, passwordHash, bio ?? null]
   );
 };
 
