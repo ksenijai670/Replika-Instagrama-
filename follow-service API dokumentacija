@@ -1,60 +1,78 @@
-# Follow-servis – API dokumentacija 
+# Follow-servis – API dokumentacija
 
 Mikroservis za praćenje, blokiranje i upravljanje odnosima između korisnika.
 
-## **Osnovni Info**
+## **Osnovni info**
 
 - **Base URL:**  
   Lokalno: `http://localhost:3004`  
-  U Docker mreži/gateway-u: `http://follow-service:3004`  
+  U Docker mreži/gateway-u: `http://follow-service:3004`
+
+- **Gateway Base URL:**  
+  Lokalno: `http://localhost:4000`
+
 - **Format:**  
-  Sve rute očekuju/vraćaju `application/json`.
-- **Autentifikacija:**  
-  Svaka ruta očekuje header:  
-  - **`x-user-id`**: ID korisnika koji šalje zahtev  
-  - (Opcionalno: `x-username`)
+  Sve rute očekuju i vraćaju `application/json`.
 
-> **Rute**  
-> Frontend **uvek koristi Gateway rute** – originalne rute mikroservisa su ovde radi razjašnjenja povezivanja i za backend/gateway tim.
+- **Autentifikacija / header-i:**  
+  Svaka ruta očekuje header:
+  - **`x-user-id`**: ID korisnika koji šalje zahtev
+  - **`x-username`**: opciono, koristi se pri komunikaciji sa Profile servisom u nekim slučajevima
 
-| Funkcija                | Mikroservis ruta        | Gateway ruta                   | Metod |
-|-------------------------|------------------------|-------------------------------|-------|
-| Zahtev za praćenje      | `/follow`              | `/api/follow`                 | POST  |
-| Prihvatanje zahteva     | `/follow/accept`       | `/api/follow/accept`          | PUT   |
-| Odbijanje zahteva       | `/follow/reject`       | `/api/follow/reject`          | DELETE|
-| Prekid praćenja         | `/unfollow`            | `/api/unfollow`               | DELETE|
-| Uklanjanje pratioca     | `/followers/remove`    | `/api/followers/remove`       | DELETE|
-| Blokiranje korisnika    | `/block`               | `/api/block`                  | POST  |
-| Provera blok statusa    | `/block-status`        | `/api/block-status`           | GET   |
-| Lista zahteva za praćenje| `/follow/notifications/:userId` | `/api/follow/notifications/:userId` | GET   |
-| Odnos (blok/follow)     | `/relationship-status` | `/api/relationship-status`    | GET   |
-| Statistika korisnika    | `/stats/:userId`       | `/api/stats/:userId`          | GET   |
-| Lista koje pratiš       | `/follow/following`    | `/api/follow/following`       | GET   |
-| Lista ko te prati       | `/follow/followers`    | `/api/follow/followers`       | GET   |
+> **Napomena**  
+> Frontend **uvek koristi Gateway rute**.  
+> Originalne rute mikroservisa su navedene radi lakšeg povezivanja i backend/gateway integracije.
 
+---
 
-**Base URL za mikroservis:**  
-`http://localhost:3004`
+## **Pregled ruta**
 
-**Base URL za Gateway:**  
-`http://localhost:4000`  
-(zajednički za sve servise: samo dodaš `/api`)
+| Funkcija | Mikroservis ruta | Gateway ruta | Metod |
+|----------|------------------|--------------|-------|
+| Zahtev za praćenje | `/follow` | `/api/follow` | POST |
+| Prihvatanje zahteva | `/follow/accept` | `/api/follow/accept` | PUT |
+| Odbijanje zahteva | `/follow/reject` | `/api/follow/reject` | DELETE |
+| Lista zahteva za praćenje | `/follow/notifications/:userId` | `/api/follow/notifications/:userId` | GET |
+| Lista koje pratiš | `/follow/following` | `/api/follow/following` | GET |
+| Lista ko te prati | `/follow/followers` | `/api/follow/followers` | GET |
+| Prekid praćenja | `/unfollow` | `/api/unfollow` | DELETE |
+| Uklanjanje pratioca | `/followers/remove` | `/api/followers/remove` | DELETE |
+| Blokiranje korisnika | `/block` | `/api/block` | POST |
+| Odblokiranje korisnika | `/block` | `/api/block` | DELETE |
+| Odblokiranje korisnika (alias) | `/block/unblock` | `/api/block/unblock` | DELETE |
+| Lista blokiranih korisnika | `/block/blocked-list` | `/api/block/blocked-list` | GET |
+| Provera block statusa | `/block-status` | `/api/block-status` | GET |
+| Odnos između korisnika | `/relationship-status` | `/api/relationship-status` | GET |
+| Statistika korisnika | `/stats/:userId` | `/api/stats/:userId` | GET |
 
+---
 
-## **Primer pozivanja sa frontend-a (preko gatewaya):**
+## **Važne napomene**
 
-```js
-// Dodavanje follow zahteva:
-fetch('http://localhost:4000/api/follow', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'x-user-id': '123' },
-  body: JSON.stringify({ following_id: '456' })
-});
-
-
-## **Napomene**
-- **Frontend koristi isključivo Gateway rute!**
+- **Frontend koristi isključivo Gateway rute.**
 - Svi zahtevi moraju imati header `x-user-id`.
-- Parametri id-eva se šalju u body ili kao deo URL-a, prema funkciji.
+- Neke rute u URL-u imaju `:userId`, ali kontroler u praksi koristi `x-user-id` iz header-a.
 - Odgovori su u JSON formatu.
+- Follow servis komunicira sa **Profile servisom**:
+  - da proveri da li je profil privatan
+  - da obogati podatke za follow zahteve
+  - da obogati listu blokiranih korisnika
+- Korisnik **ne može da zaprati samog sebe**.
+- Korisnik **ne može da blokira samog sebe**.
+- Kada korisnik blokira drugog korisnika, brišu se follow veze u oba smera.
 
+---
+
+# **Endpoint detalji**
+
+---
+
+## 1. Slanje zahteva za praćenje
+
+**Mikroservis ruta:** `POST /follow`  
+**Gateway ruta:** `POST /api/follow`
+
+### Header-i
+```http
+x-user-id: 123
+Content-Type: application/json
