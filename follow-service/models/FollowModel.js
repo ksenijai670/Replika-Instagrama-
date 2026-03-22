@@ -79,6 +79,16 @@ const FollowModel = {
     const [rows] = await db.query(query, [userA, userB, userB, userA]);
     return rows.length > 0;
   },
+
+    //odblokiranje
+  async deleteBlock(blockerId, blockedId) {
+    const query = `
+      DELETE FROM blocks
+      WHERE blocker_id = ? AND blocked_id = ?
+    `;
+    const [result] = await db.query(query, [blockerId, blockedId]);
+    return result;
+  },
       //brisanje follow relacija nakon blokiranja
   async removeFollowsOnBlock(userA, userB) {
     const query = `
@@ -87,6 +97,18 @@ const FollowModel = {
          OR (follower_id = ? AND following_id = ?)
     `;
     return db.query(query, [userA, userB, userB, userA]);
+  },
+
+    //vraca listu blokiranih
+  async getBlockedList(blockerId) {
+    const query = `
+      SELECT blocked_id AS userId
+      FROM blocks
+      WHERE blocker_id = ?
+      ORDER BY created_at DESC
+    `;
+    const [rows] = await db.query(query, [blockerId]);
+    return rows.map(r => r.userId);
   },
      //broj followers i following korisnika
   async getFollowStats(userId) {

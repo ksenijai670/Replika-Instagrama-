@@ -287,13 +287,19 @@ const getUserInfo = async (userId, requesterId, token) => {
     followers_count,
     following_count,
     is_following,
-    posts,
   ] = await Promise.all([
     getFollowersCount(userId),
     getFollowingCount(userId),
     getIsFollowing(requesterId, userId),
-    getPostsByUserId(userId, token),
   ]);
+
+  let posts = [];
+  try {
+    posts = await getPostsByUserId(userId, token);
+  } catch (err) {
+    console.error('[getUserInfo] Posts fetch failed:', err.message);
+    posts = [];
+  }
 
   return {
     data: {
