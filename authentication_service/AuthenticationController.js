@@ -33,13 +33,13 @@ const authMiddleware = async (req, res, next) => {
 // ─── RUTE ─────────────────────────────────────────────────
 
 app.post('/register', async (req, res) => {
-  const { firstName, lastName, username, email, password } = req.body;
+  const { firstName, lastName, username, email, password, bio } = req.body; // 👈 dodaj bio
   if (!firstName || !lastName || !username || !email || !password) {
     return res.status(400).json({ message: 'All fields required' });
   }
   try {
     const hash = await model.hashPassword(password);
-    await model.createUser(firstName, lastName, username, email, hash);
+    await model.createUser(firstName, lastName, username, email, hash, bio); // 👈 prosledi bio
     res.status(201).json({ message: 'User registered' });
   } catch (err) {
     res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ message: 'Error or user exists' });

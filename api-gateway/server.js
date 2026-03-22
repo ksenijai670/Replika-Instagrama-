@@ -6,6 +6,7 @@ const SERVICES       = require('./config/services');
 const authMiddleware = require('./middleware/authMiddleware');
 const { globalLimiter, authLimiter } = require('./middleware/rateLimiter');
 const errorHandler   = require('./middleware/errorHandler');
+const minioUrlRewriter = require('./middleware/minioUrlRewriter');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(cors({
 
 app.options('*', cors());
 app.use(globalLimiter);
+app.use(minioUrlRewriter);
 
 const proxy = (target) =>
   createProxyMiddleware({

@@ -31,7 +31,6 @@ const getUsersByIds = async (ids) => {
 
 // ─── Follow helpers ───────────────────────────────────────
 
-// Korisnici koje TI pratiš
 const getFollowingIds = async (userId) => {
   try {
     const res = await fetch(`${FOLLOW_SERVICE_URL}/follow/following`, {
@@ -46,21 +45,6 @@ const getFollowingIds = async (userId) => {
   }
 };
 
-// Korisnici koji TEBE prate
-const getFollowerIds = async (userId) => {
-  try {
-    const res = await fetch(`${FOLLOW_SERVICE_URL}/follow/followers`, {
-      headers: { 'x-user-id': String(userId), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data.followers) ? data.followers : [];
-  } catch (err) {
-    console.error('[getFollowerIds] Greška:', err.message);
-    return [];
-  }
-};
-
 // ─── Post/Profile/Interactions helpers ───────────────────
 
 const getPostsByUserId = async (userId, requesterId, token) => {
@@ -71,9 +55,7 @@ const getPostsByUserId = async (userId, requesterId, token) => {
         'Authorization': `Bearer ${token}`
       }
     });
-
     if (!res.ok) return [];
-
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   } catch (err) {
@@ -141,18 +123,13 @@ const getComments = async (postId, requesterId, token) => {
 // ─── Feed Glavna Funkcija ─────────────────────────────────
 
 const getFeed = async (requesterId, limit = 20, offset = 0, token = '') => {
-  // 1. Dohvati i korisnike koje pratiš I koji tebe prate — unija (mutual + one-way)
-  const [followingIds, followerIds] = await Promise.all([
-    getFollowingIds(requesterId),
-    getFollowerIds(requesterId),
-  ]);
-
-  // Spajamo obe liste bez duplikata, dodajemo i sebe
-  const allIds = [...new Set([...followingIds, ...followerIds, requesterId])];
+  // 1. Samo korisnici koje TI pratiš + ti sam
+  const followingIds = await getFollowingIds(requesterId);
+  const allIds = [...new Set([...followingIds, requesterId])];
 
   // 2. Dohvati postove svih korisnika paralelno
   const postArrays = await Promise.all(
-    allIds.map(id => getPostsByUserId(id, token))
+    allIds.map(id => getPostsByUserId(id, requesterId, token))
   );
 
   // 3. Spoji i sortiraj po datumu — najnoviji prvi
