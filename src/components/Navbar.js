@@ -14,7 +14,6 @@ function Navbar() {
 
   const activeColor = "#262626";
   const inactiveColor = "#8e8e8e";
-
   return (
     <div style={navbarContainerStyle}>
       <div style={navbarStyle}>
@@ -68,6 +67,7 @@ function Navbar() {
       </div>
     </div>
   );
+  
 }
 
 const navbarContainerStyle = { 
