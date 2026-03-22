@@ -24,7 +24,7 @@ app.get('/test-db', async (req, res) => {
 app.post('/follow', FollowController.followUser);             // Slanje zahteva
 app.put('/follow/accept', FollowController.acceptFollow);      // Prihvatanje zahteva
 app.delete('/follow/reject', FollowController.rejectFollow);   // Odbijanje zahteva
-app.get('/follow/notifications/:userId', FollowController.getNotifications); // Lista zahteva
+app.get('/follow/notifications', FollowController.getNotifications); // Lista zahteva
 app.delete('/followers/remove', FollowController.removeFollower); // uklanjanje pratioca
 app.get('/block-status', FollowController.getBlockStatus);        //blok status
 app.get('/relationship-status', FollowController.getRelationshipStatus);  //follow status
@@ -33,7 +33,9 @@ app.post('/block', FollowController.blockUser);               // Blokiranje
 app.get('/stats/:userId', FollowController.getStats);         // Statistika
 app.get('/follow/following', FollowController.getFollowing);  // Lista koje pratiš
 app.get('/follow/followers', FollowController.getFollowers);  // Lista ko te prati
-
+//app.delete('/block', FollowController.unblockUser);           // odblokiranje
+app.delete('/block/unblock', FollowController.unblockUser);   // odblokiranje
+app.get('/block/blocked-list', FollowController.getBlockedList); //lista blokiranih
 
 app.listen(PORT, () => {
   console.log(`Follow servis radi na portu ${PORT}`);

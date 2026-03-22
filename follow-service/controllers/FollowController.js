@@ -104,7 +104,6 @@ const FollowController = {
     try {
       const requests = await FollowModel.getPendingRequests(userId);
       
-      // OBOGAĆIVANJE PODATAKA: Uzimamo slike i username sa Profile servisa
       const obogaceniZahtevi = await Promise.all(requests.map(async (zahtev) => {
         try {
           const response = await fetch(`${PROFILE_SERVICE_URL}/users/${zahtev.follower_id}`, {
@@ -173,6 +172,74 @@ const FollowController = {
       return res.status(201).json({ message: 'Korisnik je blokiran i follow veze su uklonjene.' });
     } catch (err) {
       if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Korisnik je već blokiran.' });
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async unblockUser(req, res) {
+    const blocker_id = req.headers['x-user-id'];
+    const blocked_id = req.body.blocked_id;
+
+    if (!blocker_id || !blocked_id) {
+      return res.status(400).json({ error: 'blocker_id i blocked_id su obavezni.' });
+    }
+
+    try {
+      const result = await FollowModel.deleteBlock(blocker_id, blocked_id);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Blokada nije pronađena.' });
+      }
+
+      return res.status(200).json({ message: 'Korisnik je odblokiran.' });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  async getBlockedList(req, res) {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId je obavezan.' });
+    }
+
+    try {
+      const blockedIds = await FollowModel.getBlockedList(userId);
+
+      const blockedUsers = await Promise.all(
+        blockedIds.map(async (blockedId) => {
+          try {
+            const response = await fetch(`${PROFILE_SERVICE_URL}/users/${blockedId}`, {
+              headers: { 'x-user-id': userId }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              return {
+                id: data.user.id,
+                username: data.user.username,
+                first_name: data.user.first_name,
+                last_name: data.user.last_name,
+                profile_image_url: data.user.profile_image_url || null
+              };
+            }
+          } catch (err) {
+            console.error('Greška pri povlačenju profila blokiranog korisnika:', err);
+          }
+
+          return {
+            id: blockedId,
+            username: 'Nepoznat',
+            first_name: '',
+            last_name: '',
+            profile_image_url: null
+          };
+        })
+      );
+
+      return res.status(200).json({ blocked: blockedUsers });
+    } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   },
