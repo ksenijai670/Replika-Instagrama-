@@ -35,8 +35,10 @@ async function getPostMeta(postId) {
 }
 
 async function getBlockStatus(userA, userB) {
-  const url = `${RELATIONSHIP_SERVICE_URL}/block-status?userA=${userA}&userB=${userB}`;
-  const response = await fetch(url);
+  const url = `${RELATIONSHIP_SERVICE_URL}/block-status?userB=${userB}`;
+  const response = await fetch(url, {
+    headers: { 'x-user-id': String(userA) }
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -50,8 +52,10 @@ async function getBlockStatus(userA, userB) {
 }
 
 async function getRelationshipStatus(viewerId, ownerId) {
-  const url = `${RELATIONSHIP_SERVICE_URL}/relationship-status?follower_id=${viewerId}&following_id=${ownerId}`;
-  const response = await fetch(url);
+  const url = `${RELATIONSHIP_SERVICE_URL}/relationship-status?following_id=${ownerId}`;
+  const response = await fetch(url, {
+    headers: { 'x-user-id': String(viewerId) }
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -68,11 +72,12 @@ async function getRelationshipStatus(viewerId, ownerId) {
   };
 }
 
-async function getProfileVisibility(ownerId, token) {
+async function getProfileVisibility(ownerId, viewerId, token) {
   const response = await fetch(`${PROFILE_SERVICE_URL}/users/${ownerId}`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
+      'x-user-id': String(viewerId),
     },
   });
 
@@ -102,7 +107,7 @@ async function canInteractWithPost(viewerId, ownerId, token) {
   }
 
   const relationship = await getRelationshipStatus(viewerId, ownerId);
-  const visibility = await getProfileVisibility(ownerId, token);
+  const visibility = await getProfileVisibility(ownerId, viewerId, token);
 
   if (!visibility) {
     return false;
