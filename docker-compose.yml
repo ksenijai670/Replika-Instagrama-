@@ -227,6 +227,10 @@ services:
     image: alexa151/faks-projekat-pisibp:Feed-${IMAGE_TAG}
     restart: unless-stopped
     environment:
+      DB_HOST: mysql-auth_db      # ← dodaj ovo
+      DB_USER: auth_db_user       # ← dodaj ovo
+      DB_PASSWORD: auth_db_password  # ← dodaj ovo
+      DB_NAME: auth_db            # ← dodaj ovo
       PORT: 3015
       FOLLOW_SERVICE_URL: http://follow-service:3004
       POST_SERVICE_URL: http://post-service:3006

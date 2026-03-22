@@ -5,7 +5,6 @@ const app = express();
 app.use(express.json());
 
 // ─── Auth middleware ──────────────────────────────────────
-// Gateway ubacuje x-user-id — nema JWT verifikacije ovdje
 const authMiddleware = (req, res, next) => {
   const userId = req.headers['x-user-id'];
 
@@ -30,9 +29,12 @@ app.get('/health', (req, res) =>
 app.get('/feed', authMiddleware, async (req, res) => {
   const limit  = Math.min(parseInt(req.query.limit)  || 20, 100);
   const offset = Math.max(parseInt(req.query.offset) || 0,  0);
+  
+  // NOVO: Izvlačimo token iz headera i šaljemo ga u getFeed
+  const token = req.headers['authorization']?.split(' ')[1] || '';
 
   try {
-    const result = await getFeed(req.user.userId, limit, offset);
+    const result = await getFeed(req.user.userId, limit, offset, token);
     return res.status(200).json({
       posts:       result.data,
       total:       result.total,
