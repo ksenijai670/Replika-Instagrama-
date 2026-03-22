@@ -6,14 +6,27 @@ function Profile() {
   const location = useLocation();
   const [pretrazeniKorisnik] = useState(location.state?.korisnik || null);
 
-  const [tipProfila, setTipProfila] = useState(pretrazeniKorisnik ? 'javni' : 'moj');
+  const getToken = () => localStorage.getItem('token');
+  const getMyUserId = useCallback(() => {
+    const token = getToken();
+    if (!token) return null;
+    try { return JSON.parse(atob(token.split('.')[1])).userId; }
+    catch { return null; }
+  }, []);
+  const myId = getMyUserId();
+
+  const [tipProfila, setTipProfila] = useState(() => {
+    if (pretrazeniKorisnik && Number(pretrazeniKorisnik.id) !== Number(myId)) return 'javni';
+    return 'moj';
+  });
+
   const [statusPracenja, setStatusPracenja] = useState('ne_prati');
   const [isEditing, setIsEditing] = useState(false);
   const [blokiran, setBlokiran] = useState(false);
 
   const [prikaziPratioce, setPrikaziPratioce] = useState(false);
   const [prikaziPrati, setPrikaziPrati] = useState(false);
-  const [prikaziBlokirane, setPrikaziBlokirane] = useState(false);   // (3) blokirani modal
+  const [prikaziBlokirane, setPrikaziBlokirane] = useState(false);
   const [listaBlokiranih, setListaBlokiranih] = useState([]);
 
   const [odabranaObjava, setOdabranaObjava] = useState(null);
@@ -33,18 +46,8 @@ function Profile() {
   });
   const [listaPratilaca, setListaPratilaca] = useState([]);
   const [userPostsData, setUserPostsData] = useState([]);
-  // (4) tempPodaci now includes isPrivate and avatarFile
   const [tempPodaci, setTempPodaci] = useState({ firstName: '', lastName: '', bio: '', avatar: '', isPrivate: false });
-  const avatarInputRef = useRef(null); // (4) ref for file input
-
-  const getToken = () => localStorage.getItem('token');
-  const getMyUserId = useCallback(() => {
-    const token = getToken();
-    if (!token) return null;
-    try { return JSON.parse(atob(token.split('.')[1])).userId; }
-    catch { return null; }
-  }, []);
-  const myId = getMyUserId();
+  const avatarInputRef = useRef(null);
 
   const authHeaders = useCallback((extra = {}) => ({
     'Authorization': `Bearer ${getToken()}`,
@@ -52,7 +55,6 @@ function Profile() {
     ...extra
   }), [myId]);
 
-  // ─── Fetch isLiked za sve postove od interactions servisa ──
   const fetchLikeStatuses = useCallback(async (posts) => {
     if (!posts || posts.length === 0) return;
     const token = getToken();
@@ -61,10 +63,7 @@ function Profile() {
       const statuses = await Promise.all(
         posts.map(post =>
           fetch(`http://localhost:4000/api/interactions/posts/${post.id}/likes/status`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'x-user-id': String(myId),
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'x-user-id': String(myId) }
           })
           .then(r => r.ok ? r.json() : { isLiked: false })
           .then(data => ({ postId: post.id, isLiked: !!data.isLiked }))
@@ -77,7 +76,6 @@ function Profile() {
     } catch (err) { console.error('[fetchLikeStatuses]', err); }
   }, [myId]);
 
-  // ─── (5) Fix: myId added to dependency array via useCallback ──
   const fetchProfile = useCallback(async () => {
     const token = getToken();
     if (!myId || !token) return;
@@ -102,8 +100,14 @@ function Profile() {
         const posts = user.posts || [];
         setUserPostsData(posts);
         fetchLikeStatuses(posts);
+
+        if (Number(targetId) === Number(myId)) {
+          setTipProfila('moj');
+        } else if (pretrazeniKorisnik) {
+          setTipProfila(user.is_private ? 'privatni' : 'javni');
+        }
+
         if (user.is_following) setStatusPracenja('prati');
-        if (pretrazeniKorisnik) setTipProfila(user.is_private ? 'privatni' : 'javni');
       }
     } catch (err) { console.error(err); }
     finally { setUcitavamPodatke(false); }
@@ -111,7 +115,6 @@ function Profile() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  // Computed
   const fullName = `${mojProfil.firstName} ${mojProfil.lastName}`.trim();
   const userProfile = {
     username:  mojProfil.username  || pretrazeniKorisnik?.username || '',
@@ -128,7 +131,6 @@ function Profile() {
   );
   const mozeDaVidiSlike = tipProfila === 'moj' || tipProfila === 'javni' || (tipProfila === 'privatni' && statusPracenja === 'prati');
 
-  // ─── Media ────────────────────────────────────────────
   const azurirajLokalnuObjavu = (azuriranaObjava) => {
     setOdabranaObjava(azuriranaObjava);
     setUserPostsData(prev => prev.map(p => p.id === azuriranaObjava.id ? azuriranaObjava : p));
@@ -153,7 +155,6 @@ function Profile() {
     } catch (err) { console.error(err); }
   };
 
-  // ─── Komentari ────────────────────────────────────────
   const dodajKomentar = async () => {
     if (!noviKomentar.trim()) return;
     try {
@@ -164,7 +165,6 @@ function Profile() {
       });
       if (res.ok) {
         const data = await res.json();
-        // (1) include firstName+lastName for new comment
         azurirajLokalnuObjavu({
           ...odabranaObjava,
           comments: [{
@@ -206,7 +206,6 @@ function Profile() {
     } catch (err) { console.error(err); }
   };
 
-  // ─── Lajkovi ──────────────────────────────────────────
   const lajkujObjavu = async () => {
     const vecLajkovano = odabranaObjava.isLiked;
     try {
@@ -222,7 +221,6 @@ function Profile() {
     } catch (err) { console.error(err); }
   };
 
-  // ─── Objave ───────────────────────────────────────────
   const obrisiObjavu = async () => {
     if (!window.confirm("Da li ste sigurni da želite da obrišete CELU objavu?")) return;
     try {
@@ -254,14 +252,12 @@ function Profile() {
   const sledecaSlika = (e) => { e.stopPropagation(); if (trenutnaSlikaIndex < odabranaObjava.media.length - 1) setTrenutnaSlikaIndex(i => i + 1); };
   const prethodnaSlika = (e) => { e.stopPropagation(); if (trenutnaSlikaIndex > 0) setTrenutnaSlikaIndex(i => i - 1); };
 
-  // ─── (2) Pratioci/Prati — navigate to profile on click ──
   const otvoriProfil = (korisnik) => {
     navigate('/profile', { state: { korisnik: {
       id: korisnik.id,
       username: korisnik.username,
       fullName: `${korisnik.first_name || ''} ${korisnik.last_name || ''}`.trim(),
       avatar: korisnik.profile_image_url || ''
-      
     }}});
     window.location.reload();
   };
@@ -284,12 +280,31 @@ function Profile() {
     } catch (err) { console.error(err); } finally { setUcitavamListe(false); }
   };
 
-  // ─── (3) Blokirani korisnici ──────────────────────────
   const fetchBlokirane = async () => {
     setPrikaziBlokirane(true);
     try {
+      // Uzmi listu blokiranih ID-jeva
       const res = await fetch('http://localhost:4000/api/block/blocked-list', { headers: authHeaders() });
-      if (res.ok) { const data = await res.json(); setListaBlokiranih(data.blocked || []); }
+      if (!res.ok) return;
+      const data = await res.json();
+      const blockedIds = (data.blocked || []).map(b => b.id);
+
+      if (blockedIds.length === 0) {
+        setListaBlokiranih([]);
+        return;
+      }
+
+      // Uzmi podatke direktno iz profile servisa zaobilazeći blok proveru
+      const profileRes = await fetch('http://localhost:4000/api/profile/users/by-ids', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ ids: blockedIds })
+      });
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setListaBlokiranih(profileData.users || []);
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -304,7 +319,6 @@ function Profile() {
     } catch (err) { console.error(err); }
   };
 
-  // ─── Logout ───────────────────────────────────────────
   const handlePraviLogout = async () => {
     const token = getToken();
     const refreshToken = localStorage.getItem('refreshToken');
@@ -318,7 +332,6 @@ function Profile() {
     finally { localStorage.removeItem('token'); localStorage.removeItem('refreshToken'); navigate('/login'); }
   };
 
-  // ─── Follow/Block ─────────────────────────────────────
   const handleFollowClick = async () => {
     if (!myId || !pretrazeniKorisnik?.id) return;
     try {
@@ -354,12 +367,11 @@ function Profile() {
     } catch (err) { console.error(err); }
   };
 
-  // ─── (4) Upload profilne slike ───────────────────────
   const uploadAvatarSliku = async (file) => {
     if (!file) return null;
     const formData = new FormData();
     formData.append('files', file);
-    formData.append('caption', '__avatar__'); // marker da je avatar upload
+    formData.append('caption', '__avatar__');
     try {
       const res = await fetch('http://localhost:4000/api/posts', {
         method: 'POST',
@@ -374,17 +386,13 @@ function Profile() {
     return null;
   };
 
-  // ─── (4) Sačuvaj izmene profila ──────────────────────
   const sacuvajIzmene = async () => {
     try {
       let noviAvatar = tempPodaci.avatar;
-
-      // Ako je korisnik izabrao novi fajl, uploaduj ga
       if (tempPodaci.avatarFile) {
         const uploadovaniUrl = await uploadAvatarSliku(tempPodaci.avatarFile);
         if (uploadovaniUrl) noviAvatar = uploadovaniUrl;
       }
-
       const res = await fetch('http://localhost:4000/api/authentication/me', {
         method: 'PATCH',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -393,7 +401,7 @@ function Profile() {
           lastName:        tempPodaci.lastName,
           bio:             tempPodaci.bio,
           profileImageUrl: noviAvatar,
-          isPrivate:       tempPodaci.isPrivate,   // (4) privacy toggle
+          isPrivate:       tempPodaci.isPrivate,
         })
       });
       if (res.ok) {
@@ -412,7 +420,6 @@ function Profile() {
     } catch (err) { console.error(err); }
   };
 
-  // ─── RENDER ───────────────────────────────────────────
   return (
     <div style={S.container}>
       <div style={S.header}>
@@ -450,7 +457,6 @@ function Profile() {
           <>
             <button onClick={() => { setTempPodaci({ firstName: mojProfil.firstName, lastName: mojProfil.lastName, bio: mojProfil.bio, avatar: mojProfil.avatar, isPrivate: mojProfil.isPrivate, avatarFile: null }); setIsEditing(true); }} style={S.editButton}>Uredi profil</button>
             <button onClick={handlePraviLogout} style={{...S.editButton, marginLeft: '5px', backgroundColor: '#efefef', color: 'red'}}>Odjavi se</button>
-            {/* (3) Blokirani dugme */}
             <button onClick={fetchBlokirane} style={{...S.editButton, marginLeft: '5px'}}>Blokirani</button>
           </>
         ) : (
@@ -469,7 +475,7 @@ function Profile() {
         <div style={S.privateProfile}>
           <span style={{ fontSize: '50px' }}>⊘</span>
           <h3>Ovaj profil je privatan</h3>
-          <p style={{ color: 'gray', textAlign: 'center', margin: '0 20px' }}>Zaprati ovaj profil da bi video/la njegove fotografije.</p>
+          <p style={{ color: 'gray', textAlign: 'center', margin: '0 20px' }}>Zaprati ovaj profil da bi video/la njegove фотографије.</p>
         </div>
       ) : (
         <div style={S.grid}>
@@ -489,7 +495,7 @@ function Profile() {
         </div>
       )}
 
-      {/* ─── MODAL ZA OBJAVU ─── */}
+      {/*MODAL ZA OBJAVU*/}
       {odabranaObjava && (
         <div style={S.modalOverlay} onClick={zatvoriObjavu}>
           <button onClick={zatvoriObjavu} style={S.closeBtnModal}>✕</button>
@@ -562,7 +568,6 @@ function Profile() {
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <img src={kom.avatar || "/slike/outfit.jpg"} alt="avatar" style={{width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', marginTop: '2px'}}/>
                         <div>
-                          {/* (1) Show firstName + lastName instead of username */}
                           <strong>
                             {kom.firstName && kom.lastName
                               ? `${kom.firstName} ${kom.lastName}`
@@ -579,10 +584,17 @@ function Profile() {
                           )}
                         </div>
                       </div>
-                      {kom.userId === myId && editCommentId !== kom.id && (
+                      {/* vlasnik komentara ili vlasnik objave vidi dugmad */}
+                      {(Number(kom.userId) === Number(myId) || Number(odabranaObjava.userId) === Number(myId)) && editCommentId !== kom.id && (
                         <div style={{display: 'flex', gap: '8px', paddingTop: '2px'}}>
-                          <button onClick={() => { setEditCommentId(kom.id); setEditCommentText(kom.content); }} style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Uredi">✏️</button>
-                          <button onClick={() => obrisiKomentar(kom.id)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Obriši">🗑️</button>
+                          {/* izmena samo za vlasnika komentara */}
+                          {Number(kom.userId) === Number(myId) && (
+                            <button onClick={() => { setEditCommentId(kom.id); setEditCommentText(kom.content); }}
+                              style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Uredi">✏️</button>
+                          )}
+                          {/* brisanje za vlasnika komentara ili vlasnika objave */}
+                          <button onClick={() => obrisiKomentar(kom.id)}
+                            style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Obriši">🗑️</button>
                         </div>
                       )}
                     </div>
@@ -602,7 +614,7 @@ function Profile() {
                 <div style={{ marginBottom: '10px' }}>
                   <strong style={{ fontSize: '14px' }}>{odabranaObjava.likes_count || 0} lajkova</strong>
                 </div>
-                <div style={{display:'flex', borderTop:'1px solid #efefef', paddingTop:'10px'}}>
+                <div style={{display:'flex', borderTop:'1px solid #dbdbdb', paddingTop:'10px'}}>
                   <input type="text" placeholder="Dodaj komentar..." value={noviKomentar} onChange={e => setNoviKomentar(e.target.value)} style={{flex:1, border:'none', outline:'none', fontSize: '14px'}}/>
                   <button onClick={dodajKomentar} style={{background:'none', border:'none', color:'#0095f6', fontWeight:'bold', cursor:'pointer'}}>Objavi</button>
                 </div>
@@ -612,13 +624,12 @@ function Profile() {
         </div>
       )}
 
-      {/* ─── MODAL ZA IZMENU PROFILA ─── */}
+      {/* MODAL ZA IZMENU PROFILA */}
       {isEditing && (
         <div style={S.modalOverlay}>
           <div style={{...S.modalContent, maxHeight: '85vh', overflowY: 'auto'}}>
             <h3 style={{ marginTop: 0 }}>Uredi profil</h3>
 
-            {/* (4) Upload profilne slike */}
             <label style={S.label}>Profilna slika</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
               <img
@@ -670,7 +681,6 @@ function Profile() {
             <label style={S.label}>Biografija</label>
             <textarea value={tempPodaci.bio} onChange={e => setTempPodaci({...tempPodaci, bio: e.target.value})} style={S.textarea} />
 
-            {/* (4) Privacy toggle */}
             <label style={{ ...S.label, marginTop: '15px' }}>Vidljivost profila</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
               <button
@@ -695,7 +705,7 @@ function Profile() {
         </div>
       )}
 
-      {/* ─── (3) MODAL BLOKIRANI ─── */}
+      {/* MODAL BLOKIRANI */}
       {prikaziBlokirane && (
         <div style={S.modalOverlay}>
           <div style={S.listModal}>
@@ -724,7 +734,7 @@ function Profile() {
         </div>
       )}
 
-      {/* ─── (2) MODAL PRATIOCI — sa linkom ka profilu ─── */}
+      {/* MODAL PRATIOCI */}
       {prikaziPratioce && (
         <div style={S.modalOverlay}>
           <div style={S.listModal}>
@@ -755,7 +765,7 @@ function Profile() {
         </div>
       )}
 
-      {/* ─── (2) MODAL PRATI — sa linkom ka profilu ─── */}
+      {/* MODAL PRATI */}
       {prikaziPrati && (
         <div style={S.modalOverlay}>
           <div style={S.listModal}>
@@ -790,7 +800,7 @@ function Profile() {
   );
 }
 
-// ─── STILOVI ─────────────────────────────────────────────
+// STILOVI 
 const S = {
   container:            { backgroundColor: '#fafafa', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' },
   header:               { width: '100%', maxWidth: '470px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: 'white', borderBottom: '1px solid #dbdbdb' },
