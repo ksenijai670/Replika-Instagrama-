@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 const getMyUsername = () => {
   const token = localStorage.getItem('token');
   if (!token) return '';
@@ -6,7 +7,8 @@ const getMyUsername = () => {
   catch { return ''; }
 };
 const myUsername = getMyUsername();
-// ─── MediaItem komponenta ─────────────────────────────────
+
+// MediaItem komponenta 
 function MediaItem({ item, style }) {
   if (!item) return null;
   if (item.mediaType === 'video') {
@@ -23,7 +25,7 @@ function MediaItem({ item, style }) {
   return <img src={item.mediaUrl} alt="Post" style={style} />;
 }
 
-// ─── PostCard komponenta ──────────────────────────────────
+// PostCard komponenta 
 function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis }) {
   const [trenutnaSlikaIndex, setTrenutnaSlikaIndex] = useState(0);
   const [prikaziKomentare, setPrikaziKomentare] = useState(false);
@@ -39,9 +41,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
 
   const dodajKomentar = async () => {
     if (!noviKomentar.trim()) return;
-
     const token = localStorage.getItem('token');
-
     try {
       const res = await fetch(
         `http://localhost:4000/api/interactions/posts/${obj.id}/comments`,
@@ -55,10 +55,8 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
           body: JSON.stringify({ content: noviKomentar })
         }
       );
-
       if (res.ok) {
         const data = await res.json();
-
         setKomentari(prev => [
           {
             id: data.id,
@@ -69,14 +67,10 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
           },
           ...prev
         ]);
-
         setNoviKomentar('');
         setPrikaziKomentare(true);
       }
-
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const obrisiKomentar = async (commentId) => {
@@ -110,7 +104,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
   return (
     <div style={cardStyle}>
 
-      {/* ─── Header ─── */}
+      {/* Header */}
       <div style={headerStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <img
@@ -133,7 +127,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
         )}
       </div>
 
-      {/* ─── Media (slike i videi) ─── */}
+      {/* ─── Media ─── */}
       {media.length > 0 && (
         <div style={imageContainerStyle}>
           <MediaItem item={media[trenutnaSlikaIndex]} style={imageStyle} />
@@ -154,14 +148,13 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
               </div>
             </>
           )}
-          {/* Ikonica za video u uglu ako je video */}
           {media[trenutnaSlikaIndex]?.mediaType === 'video' && (
             <span style={videoIconStyle}>🎬</span>
           )}
         </div>
       )}
 
-      {/* ─── Sadržaj ─── */}
+      {/* Sadržaj */}
       <div style={contentStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '24px', marginBottom: '8px' }}>
           <span onClick={() => onLajk(obj)} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -176,7 +169,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
           {obj.likes_count || 0} sviđanja
         </div>
 
-        {/* Opis */}
+        {/* opis */}
         <div style={{ fontSize: '14px', marginBottom: '8px' }}>
           <strong>{obj.user?.username}</strong>{' '}
           {izmenaOpisa ? (
@@ -190,14 +183,14 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
           )}
         </div>
 
-        {/* Komentari toggle */}
+        {/* komentari toggle */}
         {komentari.length > 0 && (
           <div onClick={() => setPrikaziKomentare(p => !p)} style={{ color: 'gray', fontSize: '14px', cursor: 'pointer', marginBottom: '8px' }}>
             {prikaziKomentare ? 'Sakrij komentare' : `Prikaži sve komentare (${komentari.length})`}
           </div>
         )}
 
-        {/* Lista komentara */}
+        {/* lista komentara */}
         {prikaziKomentare && (
           <div style={commentSectionStyle}>
             {komentari.map(kom => (
@@ -213,9 +206,14 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
                     <span style={{ fontSize: '14px' }}>
                       <strong>{kom.username || `Korisnik #${kom.userId}`}</strong>{' '}{kom.content}
                     </span>
-                    {Number(kom.userId) === Number(myId) && (
+                    {/* vlasnik komentara ili vlasnik objave vidi dugm */}
+                    {(Number(kom.userId) === Number(myId) || Number(obj.userId) === Number(myId)) && (
                       <div style={{ display: 'flex', gap: '5px' }}>
-                        <button onClick={() => setIzmenaKomentara({ idKom: kom.id, tekst: kom.content })} style={editBtnStyle}>✏️</button>
+                        {/* zzmena samo za vlasnika komentara */}
+                        {Number(kom.userId) === Number(myId) && (
+                          <button onClick={() => setIzmenaKomentara({ idKom: kom.id, tekst: kom.content })} style={editBtnStyle}>✏️</button>
+                        )}
+                        {/* brisanje za vlasnika komentara ili vlasnika objave */}
                         <button onClick={() => obrisiKomentar(kom.id)} style={deleteBtnStyle}>×</button>
                       </div>
                     )}
@@ -243,7 +241,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
   );
 }
 
-// ─── Timeline komponenta ──────────────────────────────────
+// Timeline komponenta 
 function Timeline() {
   const [objave, setObjave] = useState([]);
   const [ucitavam, setUcitavam] = useState(true);
@@ -331,12 +329,11 @@ function Timeline() {
   return (
     <div style={containerStyle}>
       {objave.map(obj => (
-        // Dodaj myUsername prop
         <PostCard
           key={obj.id}
           obj={obj}
           myId={myId}
-          myUsername={myUsername}  // ← dodaj ovo
+          myUsername={myUsername}
           onLajk={handleLajk}
           onObrisiObjavu={handleObrisiObjavu}
           onSacuvajOpis={handleSacuvajOpis}
@@ -346,7 +343,7 @@ function Timeline() {
   );
 }
 
-// ─── Stilovi ─────────────────────────────────────────────
+// Stilovi 
 const centerStyle = { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', color: 'gray', fontSize: '16px' };
 const containerStyle = { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', backgroundColor: '#fafafa', minHeight: '100vh', paddingBottom: '80px' };
 const cardStyle = { backgroundColor: 'white', border: '1px solid #dbdbdb', borderRadius: '8px', width: '100%', maxWidth: '470px', marginBottom: '20px' };
