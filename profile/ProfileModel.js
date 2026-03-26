@@ -350,11 +350,21 @@ const updateUserProfile = async (userId, firstName, lastName, bio, profileImageU
   return result.affectedRows > 0;
 };
 
+// Dodaj u postojeći ProfileModel.js
+const updateAvatarOnly = async (userId, profileImageUrl) => {
+    const [result] = await pool.execute(
+        `UPDATE users SET profile_image_url = ? WHERE id = ?`,
+        [profileImageUrl, userId]
+    );
+    return result.affectedRows > 0;
+};
+
 module.exports = {
   searchUsers,
   getUserInfo,
   getFollowers,
   getFollowing,
   updateUserProfile,
-  getUsersByIdsPublic, // 👈 novo
+  getUsersByIdsPublic,
+  updateAvatarOnly,
 };

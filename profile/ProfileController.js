@@ -1,7 +1,11 @@
 require('dotenv').config();
+const multer = require('multer');
+const crypto = require('crypto');
+const upload = multer({ storage: multer.memoryStorage() });
+const { minioClient, bucketName } = require('./config/minio');
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { searchUsers, getUserInfo, getFollowers, getFollowing, updateUserProfile, getUsersByIdsPublic } = require('./ProfileModel');
+const { searchUsers, getUserInfo, getFollowers, getFollowing, updateUserProfile, getUsersByIdsPublic, updateAvatarOnly } = require('./ProfileModel');
 
 const app = express();
 app.use(express.json());
@@ -151,4 +155,33 @@ app.put('/users/me', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nema fajla' });
+
+    try {
+        const ext = req.file.originalname.split('.').pop().toLowerCase();
+        const fileName = `avatar-${req.user.userId}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
+
+        // Wrap u Promise zbog starijih minio SDK verzija koje koriste callback API
+        await new Promise((resolve, reject) => {
+            minioClient.putObject(
+                bucketName,
+                fileName,
+                req.file.buffer,
+                req.file.size,
+                { 'Content-Type': req.file.mimetype },
+                (err, etag) => err ? reject(err) : resolve(etag)
+            );
+        });
+
+        const profileImageUrl = `http://localhost:9000/${bucketName}/${fileName}`;
+
+        await updateAvatarOnly(req.user.userId, profileImageUrl);
+
+        res.json({ message: 'Uspesno', url: profileImageUrl });
+    } catch (err) {
+        console.error('[Avatar Upload] Greska:', err.message, err.stack);
+        res.status(500).json({ error: 'Greska pri uploadu', detail: err.message });
+    }
+});
 module.exports = app;
