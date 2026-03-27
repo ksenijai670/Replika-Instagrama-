@@ -144,6 +144,12 @@ services:
       DB_USER: auth_db_user
       DB_PASSWORD: auth_db_password
       DB_NAME: auth_db
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minio_user
+      MINIO_SECRET_KEY: minio_password
+      MINIO_BUCKET: profile-media
+      MINIO_PUBLIC_URL: http://localhost:9000
       JWT_SECRET: ${JWT_SECRET}
       FOLLOW_SERVICE_URL: http://follow-service:3004
       POST_SERVICE_URL: http://post-service:3006
@@ -155,6 +161,8 @@ services:
         condition: service_started
       post-service:
         condition: service_started
+      minio:
+        condition: service_healthy
 
   # ─── Follow service ───────────────────────────────────────
   follow-service:
