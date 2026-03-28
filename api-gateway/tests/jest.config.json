@@ -1,0 +1,25 @@
+{
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/__tests__/**/*.test.js"],
+    "collectCoverageFrom": [
+      "server.js",
+      "config/services.js",
+      "middleware/authMiddleware.js",
+      "middleware/errorHandler.js",
+      "middleware/minioUrlRewriter.js",
+      "middleware/rateLimiter.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      }
+    },
+    "coverageReporters": ["text", "lcov", "html"],
+    "clearMocks": true,
+    "resetModules": false
+  }
+}
