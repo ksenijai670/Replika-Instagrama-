@@ -1,0 +1,9 @@
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'supersecretjwtkey123';
+process.env.JWT_REFRESH_SECRET = 'supersecretrefreshkey456';
+process.env.DB_HOST = '127.0.0.1';
+process.env.DB_PORT = '5000';
+process.env.DB_USER = 'auth_db_user';
+process.env.DB_PASSWORD = 'auth_db_password';
+process.env.AUTH_DB_NAME = 'auth_db';
+process.env.REDIS_URL = 'redis://127.0.0.1:5100';

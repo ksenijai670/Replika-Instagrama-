@@ -172,6 +172,8 @@ services:
     image: alexa151/faks-projekat-pisibp:FollowService-${IMAGE_TAG}
     container_name: follow-service
     restart: unless-stopped
+    ports:
+    - "3004:3004"
     environment:
       DB_HOST: mysql-follow_service_db
       DB_USER: follow_service_db_user
