@@ -149,7 +149,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
             </>
           )}
           {media[trenutnaSlikaIndex]?.mediaType === 'video' && (
-            <span style={videoIconStyle}>🎬</span>
+            <span style={videoIconStyle}>📽</span>
           )}
         </div>
       )}
@@ -158,7 +158,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
       <div style={contentStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '24px', marginBottom: '8px' }}>
           <span onClick={() => onLajk(obj)} style={{ cursor: 'pointer', userSelect: 'none' }}>
-            {obj.isLiked ? '❤️' : '🤍'}
+            {obj.isLiked ? '♥' : '♡'}
           </span>
           <span onClick={() => setPrikaziKomentare(p => !p)} style={{ cursor: 'pointer', userSelect: 'none', fontSize: '20px' }}>
             💬
@@ -211,7 +211,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
                       <div style={{ display: 'flex', gap: '5px' }}>
                         {/* zzmena samo za vlasnika komentara */}
                         {Number(kom.userId) === Number(myId) && (
-                          <button onClick={() => setIzmenaKomentara({ idKom: kom.id, tekst: kom.content })} style={editBtnStyle}>✏️</button>
+                          <button onClick={() => setIzmenaKomentara({ idKom: kom.id, tekst: kom.content })} style={editBtnStyle}>🖋</button>
                         )}
                         {/* brisanje za vlasnika komentara ili vlasnika objave */}
                         <button onClick={() => obrisiKomentar(kom.id)} style={deleteBtnStyle}>×</button>

@@ -4,211 +4,187 @@ import { useNavigate } from 'react-router-dom';
 const API = 'http://localhost:4000';
 
 function Register() {
-  const [formData, setFormData] = useState({
-    name: '',
-    username: '',
-    email: '',
-    password: '',
-    description: '',
-    profilePicture: null
-  });
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        name: '',
+        username: '',
+        email: '',
+        password: '',
+        description: '',
+        profilePicture: null
+    });
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.size > 50 * 1024 * 1024) {
-      alert("Fajl je prevelik! Maksimalna veličina je 50MB.");
-      e.target.value = null;
-    } else {
-      setFormData({ ...formData, profilePicture: file });
-    }
-  };
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file && file.size > 50 * 1024 * 1024) {
+            alert("Fajl je prevelik! Maksimalna veličina je 50MB.");
+            e.target.value = null;
+        } else {
+            setFormData({ ...formData, profilePicture: file });
+        }
+    };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
 
-    const nameParts = formData.name.trim().split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '-';
+        const nameParts = formData.name.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '-';
 
-    try {
-      // Registracija
-      const regRes = await fetch(`${API}/api/authentication/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          bio: formData.description || null,
-        })
-      });
+        try {
+            // 1. Registracija korisnika
+            const regRes = await fetch(`${API}/api/authentication/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    firstName,
+                    lastName,
+                    username: formData.username,
+                    email: formData.email,
+                    password: formData.password,
+                    bio: formData.description
+                })
+            });
 
-      if (regRes.status === 409) {
-        alert("Korisnik sa tim imenom ili emailom već postoji!");
-        setLoading(false);
-        return;
-      }
-      if (!regRes.ok) {
-        const data = await regRes.json();
-        alert(`Greška pri registraciji: ${data.message}`);
-        setLoading(false);
-        return;
-      }
+            if (!regRes.ok) {
+                const errorData = await regRes.json();
+                throw new Error(errorData.message || "Registracija neuspešna");
+            }
 
-      // Ako nema slike
-      if (!formData.profilePicture) {
-        alert("Uspešna registracija!");
-        navigate('/login');
-        return;
-      }
+            // 2. Login odmah nakon registracije da bismo dobili Token za upload slike
+            const loginRes = await fetch(`${API}/api/authentication/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    identifier: formData.username,
+                    password: formData.password
+                })
+            });
 
-      // Auto-login da dobijemo token 
-      const loginRes = await fetch(`${API}/api/authentication/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier: formData.email,
-          password: formData.password,
-        })
-      });
+            if (loginRes.ok) {
+                const loginData = await loginRes.json();
+                const token = loginData.accessToken; // Koristimo accessToken koji vraća tvoj Auth servis
 
-      if (!loginRes.ok) {
-        alert("Registracija uspešna, ali nije moguće postaviti profilnu sliku sada. Možete je dodati kasnije.");
-        navigate('/login');
-        return;
-      }
+                // 3. Ako postoji slika, šaljemo je direktno na Profile Service (/avatar)
+                if (formData.profilePicture && token) {
+                    const avatarFormData = new FormData();
+                    avatarFormData.append('avatar', formData.profilePicture);
 
-      const { accessToken } = await loginRes.json();
+                    try {
+                        const avatarRes = await fetch(`${API}/api/profile/avatar`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                                // Ne postavljati Content-Type — browser sam postavlja multipart/form-data sa boundary
+                            },
+                            body: avatarFormData
+                        });
 
-      // Upload slike kao post (bez caption-a) 
-      const formDataUpload = new FormData();
-      formDataUpload.append('files', formData.profilePicture);
+                        if (!avatarRes.ok) {
+                            const errData = await avatarRes.json().catch(() => ({}));
+                            console.warn('[Register] Avatar upload neuspešan:', errData.detail || errData.error || avatarRes.status);
+                            // Ne bacamo grešku — registracija je uspela, samo avatar nije postavljen
+                        }
+                    } catch (avatarErr) {
+                        console.warn('[Register] Avatar upload greška:', avatarErr.message);
+                        // Isto — ne blokiramo navigaciju
+                    }
+                }
+            }
 
-      const postRes = await fetch(`${API}/api/posts`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-        body: formDataUpload,
-      });
+            alert("Uspešna registracija!");
+            navigate('/login');
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      if (!postRes.ok) {
-        alert("Registracija uspešna, ali upload slike nije uspeo. Možete je dodati kasnije.");
-        navigate('/login');
-        return;
-      }
+    return (
+        <div style={containerStyle}>
+            <div style={cardStyle}>
+                <h1 style={{ fontFamily: 'Lobster, cursive', fontSize: '3rem', marginBottom: '20px' }}>Instagram</h1>
+                <p style={{ color: '#8e8e8e', fontWeight: '600', textAlign: 'center', marginBottom: '20px' }}>
+                    Registruj se da vidiš slike i videe tvojih prijatelja.
+                </p>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <input
+                        type="text"
+                        placeholder="Ime i prezime"
+                        style={inputStyle}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Korisničko ime (Obavezno)"
+                        required
+                        style={inputStyle}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    />
+                    <input
+                        type="email"
+                        placeholder="Email (Obavezno)"
+                        required
+                        style={inputStyle}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
+                    <input
+                        type="password"
+                        placeholder="Lozinka (Obavezno)"
+                        required
+                        style={inputStyle}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                    <textarea
+                        placeholder="Opis profila (Opciono)"
+                        style={inputStyle}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
 
-      const post = await postRes.json();
+                    <label style={{ fontSize: '12px', textAlign: 'left', color: '#8e8e8e', marginTop: '10px' }}>
+                        Profilna slika (Opciono):
+                    </label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        style={{ marginBottom: '10px' }}
+                    />
 
-      // Fix MinIO internog URL-a 
-      const rawUrl = post.media?.[0]?.mediaUrl || '';
-      const imageUrl = rawUrl.replace('http://minio:9000', 'http://localhost:9000');
-
-      // Postavi sliku kao profilnu 
-      if (imageUrl) {
-        await fetch(`${API}/api/authentication/me`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ profileImageUrl: imageUrl }),
-        });
-      }
-
-      alert("Uspešna registracija!");
-      navigate('/login');
-
-    } catch (error) {
-      alert("Server trenutno nije dostupan!");
-      console.error("Greška pri registraciji:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={containerStyle}>
-      <div style={cardStyle}>
-        <h1 style={{ fontFamily: 'cursive' }}>Instagram Replica</h1>
-        <p style={{ color: '#8e8e8e', fontWeight: 'bold' }}>Registruj se</p>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column' }}>
-          <input
-            type="text"
-            placeholder="Ime i prezime (Obavezno)"
-            required
-            style={inputStyle}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="Korisničko ime (Obavezno)"
-            required
-            style={inputStyle}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-          />
-          <input
-            type="email"
-            placeholder="Email adresa (Obavezno)"
-            required
-            style={inputStyle}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          />
-          <input
-            type="password"
-            placeholder="Lozinka (Obavezno)"
-            required
-            style={inputStyle}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          />
-          <textarea
-            placeholder="Opis profila (Opciono)"
-            style={inputStyle}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-
-          <label style={{ fontSize: '12px', textAlign: 'left', color: '#8e8e8e', marginTop: '10px' }}>
-            Profilna slika (Opciono):
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ marginBottom: '10px' }}
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ ...buttonStyle, opacity: loading ? 0.6 : 1 }}
-          >
-            {loading ? 'Registracija u toku...' : 'Registruj se'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        style={{ ...buttonStyle, opacity: loading ? 0.6 : 1 }}
+                    >
+                        {loading ? 'Registracija u toku...' : 'Registruj se'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
 }
 
+// Stilovi (zadržani iz tvog originalnog fajla)
 const containerStyle = {
-  display: 'flex', flexDirection: 'column', alignItems: 'center',
-  padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#fafafa', minHeight: '100vh'
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#fafafa', minHeight: '100vh'
 };
 const cardStyle = {
-  backgroundColor: 'white', border: '1px solid #dbdbdb',
-  padding: '30px', width: '350px', textAlign: 'center'
+    backgroundColor: 'white', border: '1px solid #dbdbdb', padding: '30px',
+    width: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center'
 };
 const inputStyle = {
-  padding: '10px', margin: '5px 0', border: '1px solid #dbdbdb',
-  borderRadius: '3px', backgroundColor: '#fafafa', fontSize: '12px'
+    width: '100%', padding: '10px', marginBottom: '10px',
+    border: '1px solid #dbdbdb', borderRadius: '3px', backgroundColor: '#fafafa',
+    boxSizing: 'border-box'
 };
 const buttonStyle = {
-  backgroundColor: '#0095f6', color: 'white', border: 'none',
-  borderRadius: '4px', padding: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px'
+    width: '100%', padding: '8px', backgroundColor: '#0095f6',
+    color: 'white', border: 'none', borderRadius: '4px',
+    fontWeight: 'bold', cursor: 'pointer', marginTop: '10px'
 };
 
 export default Register;
