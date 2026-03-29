@@ -6,8 +6,8 @@ on:
   pull_request:
     branches:
       - main
-jobs:
 
+jobs:
   test:
     runs-on: ubuntu-latest
     steps:
@@ -15,9 +15,62 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npm test
-      
+
+      # 1. Testovi iz roota (Frontend)
+      - name: Install and Test Frontend
+        run: |
+          npm install
+          npm test
+
+      # 2. Testovi za API gateway
+      - name: Install and Test API Gateway
+        working-directory: ./api-gateway
+        run: |
+          npm install
+          npm test
+
+      # 3. Testovi za auth servis
+      - name: Install and Test Auth Service
+        working-directory: ./authentication_service
+        run: |
+          npm install
+          npm test
+
+      # 4. Testovi za follow servis
+      - name: Install and Test Follow Service
+        working-directory: ./follow-service
+        run: |
+          npm install
+          npm test
+
+      # 5. Testovi za feed servis
+      - name: Install and Test Feed Service
+        working-directory: ./feed
+        run: |
+          npm install
+          npm test
+
+      # 6. Testovi za profile servis
+      - name: Install and Test Profile Service
+        working-directory: ./profile
+        run: |
+          npm install
+          npm test
+
+      # 7. Testovi za interactions servis (unutar content_servisi)
+      - name: Install and Test Interactions Service
+        working-directory: ./content_servisi/interactions-service
+        run: |
+          npm install
+          npm test
+
+      # 8. Testovi za post servis (unutar content_servisi)
+      - name: Install and Test Post Service
+        working-directory: ./content_servisi/post-service
+        run: |
+          npm install
+          npm test
+
   build-and-push-docker:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
