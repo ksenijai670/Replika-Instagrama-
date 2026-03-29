@@ -156,7 +156,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
 
       {/* Sadržaj */}
       <div style={contentStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '24px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '32px', marginBottom: '8px' }}>
           <span onClick={() => onLajk(obj)} style={{ cursor: 'pointer', userSelect: 'none' }}>
             {obj.isLiked ? '♥' : '♡'}
           </span>

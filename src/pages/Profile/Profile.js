@@ -602,8 +602,8 @@ function Profile() {
               </div>
 
               <div style={S.postRightFooter}>
-                <div style={{ marginBottom: '10px', fontSize: '24px', display: 'flex', alignItems: 'center' }}>
-                  <span onClick={lajkujObjavu} style={{ cursor: 'pointer', marginRight: '25px', userSelect: 'none', color: odabranaObjava.isLiked ? '#ed4956' : '#262626' }}>
+                <div style={{ marginBottom: '10px', fontSize: '30px', display: 'flex', alignItems: 'center' }}>
+                  <span onClick={lajkujObjavu} style={{ cursor: 'pointer', marginRight: '15px', userSelect: 'none', color: odabranaObjava.isLiked ? '#ed4956' : '#262626' }}>
                     {odabranaObjava.isLiked ? '♥' : '♡'}
                   </span>
                   <span style={{ cursor: 'default', userSelect: 'none', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '5px' }}>
