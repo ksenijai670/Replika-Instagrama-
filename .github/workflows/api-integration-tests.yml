@@ -1,0 +1,64 @@
+name: API Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  api-integration-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: auth_db_password
+          MYSQL_DATABASE: auth_db
+          MYSQL_USER: auth_db_user
+          MYSQL_PASSWORD: auth_db_password
+        ports:
+          - 5000:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -pauth_db_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 5100:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Inicijalizuj auth bazu
+        run: mysql -h 127.0.0.1 -P 5000 -u root -pauth_db_password auth_db < authentication_service/db/auth_db.sql
+
+      - name: Instaliraj zavisnosti za authentication_service
+        run: |
+          cd authentication_service
+          npm install
+
+      - name: Instaliraj zavisnosti za integration-tests
+        run: |
+          cd integration-tests
+          npm install
+
+      - name: Pokreni API integracione testove
+        run: |
+          cd integration-tests
+          npm test
