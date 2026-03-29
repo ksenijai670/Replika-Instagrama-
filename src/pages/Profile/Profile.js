@@ -370,17 +370,16 @@ function Profile() {
   const uploadAvatarSliku = async (file) => {
     if (!file) return null;
     const formData = new FormData();
-    formData.append('files', file);
-    formData.append('caption', '__avatar__');
+    formData.append('avatar', file);
     try {
-      const res = await fetch('http://localhost:4000/api/posts', {
+      const res = await fetch('http://localhost:4000/api/profile/avatar', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${getToken()}`, 'x-user-id': String(myId) },
         body: formData
       });
       if (res.ok) {
         const data = await res.json();
-        return data.media?.[0]?.mediaUrl || null;
+        return data.url || null;
       }
     } catch (err) { console.error(err); }
     return null;
@@ -502,7 +501,7 @@ function Profile() {
           <div style={S.postModalSplit} onClick={e => e.stopPropagation()}>
             <div style={S.postLeft}>
               {tipProfila === 'moj' && odabranaObjava.media?.length > 0 && (
-                <button onClick={() => obrisiSlikuIzObjave(odabranaObjava.media[trenutnaSlikaIndex].id)} style={S.deleteMediaBtn} title="Obriši ovaj fajl">🗑️</button>
+                <button onClick={() => obrisiSlikuIzObjave(odabranaObjava.media[trenutnaSlikaIndex].id)} style={S.deleteMediaBtn} title="Obriši ovaj fajl">🗑</button>
               )}
               {trenutnaSlikaIndex > 0 && <button onClick={prethodnaSlika} style={S.leftArrow}>&#8249;</button>}
               {odabranaObjava.media?.[trenutnaSlikaIndex]?.mediaType === 'video' ? (
@@ -527,7 +526,7 @@ function Profile() {
                   <strong style={{fontSize: '14px'}}>{userProfile.fullName || userProfile.username}</strong>
                 </div>
                 {tipProfila === 'moj' && (
-                  <button onClick={obrisiObjavu} style={{background:'none', border:'none', color:'red', cursor:'pointer', fontSize: '18px'}} title="Obriši CELU objavu">🗑️</button>
+                  <button onClick={obrisiObjavu} style={{background:'none', border:'none', color:'red', cursor:'pointer', fontSize: '18px'}} title="Obriši CELU objavu">🗑</button>
                 )}
               </div>
 
@@ -554,7 +553,7 @@ function Profile() {
                             onClick={() => { setEditCaption(true); setNoviCaption(odabranaObjava.caption || ''); }}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', marginLeft: '6px', color: 'gray' }}
                             title="Izmeni opis"
-                          >✏️</button>
+                          >🖋</button>
                         )}
                       </span>
                     )}
@@ -590,11 +589,11 @@ function Profile() {
                           {/* izmena samo za vlasnika komentara */}
                           {Number(kom.userId) === Number(myId) && (
                             <button onClick={() => { setEditCommentId(kom.id); setEditCommentText(kom.content); }}
-                              style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Uredi">✏️</button>
+                              style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Uredi">🖋</button>
                           )}
                           {/* brisanje za vlasnika komentara ili vlasnika objave */}
                           <button onClick={() => obrisiKomentar(kom.id)}
-                            style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Obriši">🗑️</button>
+                            style={{background:'none', border:'none', cursor:'pointer', fontSize:'12px'}} title="Obriši">🗑</button>
                         </div>
                       )}
                     </div>
@@ -604,7 +603,7 @@ function Profile() {
 
               <div style={S.postRightFooter}>
                 <div style={{ marginBottom: '10px', fontSize: '24px', display: 'flex', alignItems: 'center' }}>
-                  <span onClick={lajkujObjavu} style={{ cursor: 'pointer', marginRight: '15px', userSelect: 'none', color: odabranaObjava.isLiked ? '#ed4956' : '#262626' }}>
+                  <span onClick={lajkujObjavu} style={{ cursor: 'pointer', marginRight: '25px', userSelect: 'none', color: odabranaObjava.isLiked ? '#ed4956' : '#262626' }}>
                     {odabranaObjava.isLiked ? '♥' : '♡'}
                   </span>
                   <span style={{ cursor: 'default', userSelect: 'none', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -638,6 +637,11 @@ function Profile() {
                 style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #dbdbdb' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  style={{...S.saveModalBtn, fontSize: '12px', padding: '6px 12px'}}>
+                  Izaberi sliku
+                </button>
                 {(tempPodaci.avatarPreview || tempPodaci.avatar) && (
                   <button onClick={() => setTempPodaci(p => ({ ...p, avatar: '', avatarFile: null, avatarPreview: '' }))}
                     style={{...S.cancelModalBtn, fontSize: '12px', color: 'red'}}>
@@ -688,13 +692,13 @@ function Profile() {
                 style={{ ...S.editButton, flex: 1, padding: '7px 0',
                   backgroundColor: !tempPodaci.isPrivate ? '#0095f6' : '#efefef',
                   color: !tempPodaci.isPrivate ? 'white' : 'black' }}
-              >🌍 Javan</button>
+              > ꗃ Javan </button>
               <button
                 onClick={() => setTempPodaci(p => ({ ...p, isPrivate: true }))}
                 style={{ ...S.editButton, flex: 1, padding: '7px 0',
                   backgroundColor: tempPodaci.isPrivate ? '#0095f6' : '#efefef',
                   color: tempPodaci.isPrivate ? 'white' : 'black' }}
-              >🔒 Privatan</button>
+              > 🔒︎ Privatan </button>
             </div>
 
             <div style={S.modalButtonContainer}>
@@ -836,7 +840,7 @@ const S = {
   modalOverlay:         { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
   closeBtnModal:        { position: 'absolute', top: '15px', right: '20px', background: 'none', border: 'none', color: 'white', fontSize: '30px', cursor: 'pointer', zIndex: 2001 },
   postModalSplit:       { display: 'flex', flexDirection: 'row', width: '90%', maxWidth: '1000px', height: '80vh', backgroundColor: 'white', borderRadius: '4px', overflow: 'hidden' },
-  postLeft:             { flex: 2, backgroundColor: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  postLeft:             { flex: 2, backgroundColor: 'black', display: 'flex', alignItems: 'center', justifyContent: 'centear', position: 'relative' },
   postRight:            { flex: 1, display: 'flex', flexDirection: 'column', minWidth: '300px', backgroundColor: 'white' },
   postModalImage:       { width: '100%', height: '100%', objectFit: 'contain' },
   leftArrow:            { position: 'absolute', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', fontSize: '20px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', left: '10px' },
