@@ -6,25 +6,70 @@ Ovaj projekat predstavlja funkcionalnu repliku društvene mreže Instagram, diza
 
 ---
 
-## 1. Arhitektura aplikacije
+## 1. Arhitektura mikroservisa i portovi
 
-Sistem je dizajniran korišćenjem mikroservisne arhitekture, gde je svaka poslovna logika izolovana u sopstveni servis. Svi servisi su kontejnerizovani putem Docker-a.
+Sistem je podeljen na više nezavisnih mikroservisa. Svi zahtevi sa klijentske strane idu preko API Gateway-a, koji ih dalje rutira ka odgovarajućim servisima.
 
-Ključne komponente sistema su:
-* Frontend (React.js): Korisnički interfejs koncipiran kao Single Page Application (SPA).
-* API Gateway: Jedina ulazna tačka za klijenta. Rutira sve HTTP zahteve ka odgovarajućim mikroservisima i vrši proveru JWT tokena (Rate limiting & Auth Middleware).
-* Auth Service: Upravlja registracijom, prijavom i generisanjem JWT tokena.
-* Profile Service: Upravlja korisničkim profilima (javni/privatni), pretragom korisnika i uređivanjem profilnih podataka.
-* Follow Service: Reguliše odnose između korisnika (praćenje, zahtevi za praćenje kod privatnih profila, blokiranje).
-* Post Service: Omogućava kreiranje, brisanje i pregled objava, kao i bezbedno čuvanje fajlova.
-* Interactions Service: Upravlja "lajkovima" i komentarima na objavama (dodavanje, izmena, brisanje).
-* Feed Service: Generiše hronološku vremensku liniju (Timeline) spajanjem objava praćenih korisnika, njihovih lajkova i komentara.
-* MySQL: Sistem za upravljanje relacionim bazama podataka.
-* MinIO: (Object storage) kompatibilan sa Amazon S3, zadužen za bezbedno i skalabilno čuvanje slika i video zapisa (do 50MB po fajlu, maks 20 fajlova po objavi).
+| Servis | Kontejner | Eksterni Port (Host) | Interni Port (Docker) | Opis |
+| :--- | :--- | :--- | :--- | :--- |
+| **API Gateway** | `gateway` | **4000** | 4000 | Ulazna tačka za sve klijentske zahteve |
+| **Frontend** | `react-app` | **3000** | - | React korisnički interfejs |
+| **Authentication** | `authentication` | - | 3001 | Servis za prijavu, registraciju i JWT tokene |
+| **Profile** | `profile` | - | 3010 | Servis za upravljanje korisničkim profilima |
+| **Follow** | `follow-service` | **3004** | 3004 | Servis za praćenje (Followers/Following) |
+| **Post** | `post-service` | - | 3006 | Servis za kreiranje i učitavanje objava |
+| **Interactions**| `interactions-service` | - | 3005 | Servis za lajkove, komentare itd. |
+| **Feed** | `feed` | - | 3015 | Servis za generisanje početne strane (Feed-a) |
+
+
+**Baze podataka i Infrastruktura:**
+* **MinIO (Skladištenje slika):** API Port `9000` | Console Port `9001`
+* **Redis (Keširanje):** Port `5100` (eksterni) / `6379` (interni)
+* **MySQL - Auth DB:** Port `5000`
+* **MySQL - Follow DB:** Port `5001`
+* **MySQL - Post DB:** Port `5003`
+* **MySQL - Interactions DB:** Port `5005`
 
 ---
 
-## 2. Tok izvršavanja funkcionalnosti (Execution Flow)
+## 2. Rute u aplikaciji (Routes)
+
+Aplikacija koristi strogu podelu na korisnički interfejs (Frontend) i pozadinske servise (Backend API) preko Gateway-a. Neautorizovani korisnici nemaju pristup glavnim stranicama aplikacije.
+
+1. Klijentske rute (Frontend - React)
+Pristup većini stranica je zaštićen (`ProtectedRoute`) i zahteva validan JWT token.
+
+| Putanja (Path) | Komponenta | Pristup | Opis |
+| :--- | :--- | :--- | :--- |
+| `/login` | `Login` | 🟢 Javna | Stranica za prijavu postojećih korisnika |
+| `/register` | `Register` | 🟢 Javna | Stranica za kreiranje novog naloga |
+| `/` | `Timeline` | 🔒 Zaštićena | Početna strana (Feed) sa objavama praćenih korisnika |
+| `/profile` | `Profile` | 🔒 Zaštićena | Korisnički profil (prikaz slika, pratilaca i objava) |
+| `/create` | `CreatePost` | 🔒 Zaštićena | Forma za kreiranje i postavljanje nove objave |
+| `/search` | `Search` | 🔒 Zaštićena | Pretraga drugih korisnika mreže |
+| `/notifications` | `Notifications` | 🔒 Zaštićena | Pregled obaveštenja (lajkovi, komentari, zapraćivanja) |
+
+2. API Gateway Rute (Backend)
+Svi pozivi ka serveru idu preko API Gateway-a (Port `4000`), koji preusmerava zahtev do odgovarajućeg mikroservisa. Skoro sve rute prolaze kroz autentifikacioni middleware.
+
+| API Endpoint | Preusmerava na (Servis) | Pristup | Limiter |
+| :--- | :--- | :--- | :--- |
+| `GET /health` | *Gateway* (Lokalno) | 🟢 Javni | Globalni |
+| `POST /api/authentication/register`| `Authentication` (`/register`) | 🟢 Javni | Da (Auth) |
+| `POST /api/authentication/login` | `Authentication` (`/login`) | 🟢 Javni | Da (Auth) |
+| `POST /api/authentication/logout` | `Authentication` (`/logout`) | 🔒 Zaštićen | Globalni |
+| `GET /api/authentication/me` | `Authentication` (`/me`) | 🔒 Zaštićen | Globalni |
+| `* /api/profile/*` | `Profile` | 🔒 Zaštićen | Globalni |
+| `* /api/follow/*` | `Follow` (`/follow`) | 🔒 Zaštićen | Globalni |
+| `* /api/unfollow/*` | `Follow` (`/unfollow`)| 🔒 Zaštićen | Globalni |
+| `* /api/block/*` | `Follow` (`/block`) | 🔒 Zaštićen | Globalni |
+| `* /api/posts/*` | `Post` (`/posts`) | 🔒 Zaštićen | Globalni |
+| `* /api/interactions/*` | `Interactions` | 🔒 Zaštićen | Globalni |
+| `* /api/feed/*` | `Feed` (`/feed`) | 🔒 Zaštićen | Globalni |
+
+---
+
+## 3. Tok izvršavanja funkcionalnosti (Execution Flow)
 
 *Primer toka podataka prilikom učitavanja Timeline-a (Vremenske linije):
 
@@ -40,7 +85,7 @@ Ključne komponente sistema su:
 
 ---
 
-## 3. Uputstvo za pokretanje aplikacije
+## 4. Uputstvo za pokretanje aplikacije
 
 Aplikacija je u potpunosti kontejnerizovana i pokreće se putem docker-compose alata.
 
@@ -61,7 +106,7 @@ Aplikacija je u potpunosti kontejnerizovana i pokreće se putem docker-compose a
 
 ---
 
-## 4. Testiranje i CI/CD Pipeline
+## 5. Testiranje i CI/CD Pipeline
 Kontinualna integracija i isporuka su automatizovane putem GitHub Actions:
 
 Pull Requests: Otvaranje PR-a automatski pokreće jedinične (Unit) testove.
@@ -80,13 +125,13 @@ Merge on Main: Svaki komit na main grani pokreće jedinične testove. Ukoliko te
 
 ---
 
-## 5. Dijagram
+## 6. Dijagram
 
 (ovde ide slika koju budemo napravili)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ---
 
-## 6. Definisana poboljšanja (Future Improvements)
+## 7. Definisana poboljšanja (Future Improvements)
 - Direktne poruke (Chat): Implementacija sistema za razmenu poruka u realnom vremenu korišćenjem WebSockets tehnologije za privatne razgovore između korisnika.
 - Stories i Reels: Dodavanje podrške za privremeni sadržaj u trajanju od 24 sata (Stories) i kratke video formate (Reels) sa optimizovanim strimovanjem videa.
 - Sistem za preporuke (Recommendation Engine): Zamena isključivo hronološkog prikaza objava (feed-a) algoritmom za preporuke baziranim na veštačkoj inteligenciji i mašinskom učenju (AI/ML), koji će predlagati objave i naloge na osnovu korisničkih interakcija i angažovanja.
@@ -94,7 +139,7 @@ Merge on Main: Svaki komit na main grani pokreće jedinične testove. Ukoliko te
 
 ---
 
-## 7. Članovi tima i uloge
+## 8. Članovi tima i uloge
 - Ksenija Živković (658-2022) - Frontend Engineer (Zadužena za razvoj grafičkog korisničkog interfejsa u React-u, povezivanje sa Gateway-em i pisanje Frontend Unit testova).
 - Aleksa Milenković (647-2021) - Backend Engineer A (Zadužen za razvoj biznis logike (Auth, Profile servisi), pisanje Unit testova, kao i DevOps aktivnosti: implementaciju CI/CD toka, Dockerfile i docker-compose fajlova).
 - Emilija Mladenović (602-2022) - Backend Engineer B (Zadužena za razvoj biznis logike (Post, Interactions servisi), definisanje modela podataka, pisanje Unit testova i API integracionih testova).
