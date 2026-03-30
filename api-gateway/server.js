@@ -65,6 +65,12 @@ app.use('/api/unfollow', authMiddleware, createProxyMiddleware({
   parseReqBody: false,
   pathRewrite: (path) => '/unfollow' + (path === '/' ? '' : path),
 }));
+app.use('/api/remove', authMiddleware, createProxyMiddleware({
+  target: SERVICES.follow,
+  changeOrigin: true,
+  parseReqBody: false,
+  pathRewrite: (path) => '/followers/remove' + (path === '/' ? '' : path),
+}));
 app.use('/api/block', authMiddleware, createProxyMiddleware({
   target: SERVICES.follow,
   changeOrigin: true,
