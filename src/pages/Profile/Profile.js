@@ -283,7 +283,6 @@ function Profile() {
   const fetchBlokirane = async () => {
     setPrikaziBlokirane(true);
     try {
-      // Uzmi listu blokiranih ID-jeva
       const res = await fetch('http://localhost:4000/api/block/blocked-list', { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
@@ -294,7 +293,6 @@ function Profile() {
         return;
       }
 
-      // Uzmi podatke direktno iz profile servisa zaobilazeći blok proveru
       const profileRes = await fetch('http://localhost:4000/api/profile/users/by-ids', {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -364,6 +362,37 @@ function Profile() {
         });
         setBlokiran(true);
       } else { setBlokiran(false); }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleOtpratiIzListe = async (followingId) => {
+    if (!window.confirm("Da li ste sigurni da želite da otpratite ovog korisnika?")) return;
+    try {
+      const res = await fetch('http://localhost:4000/api/unfollow', {
+        method: 'DELETE',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ following_id: followingId })
+      });
+      if (res.ok) {
+        setListaPratilaca(prev => prev.filter(k => k.id !== followingId));
+        setMojProfil(prev => ({ ...prev, followingCount: Math.max(0, prev.followingCount - 1) }));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleUkloniPratiocaIzListe = async (followerId) => {
+    if (!window.confirm("Da li ste sigurni da želite da uklonite ovog pratioca?")) return;
+    try {
+      // NAPOMENA: Ovde gađamo /api/followers/remove kako je definisano u bekind ruti
+      const res = await fetch('http://localhost:4000/api/remove', {
+        method: 'DELETE',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ follower_id: followerId })
+      });
+      if (res.ok) {
+        setListaPratilaca(prev => prev.filter(k => k.id !== followerId));
+        setMojProfil(prev => ({ ...prev, followersCount: Math.max(0, prev.followersCount - 1) }));
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -474,7 +503,7 @@ function Profile() {
         <div style={S.privateProfile}>
           <span style={{ fontSize: '50px' }}>⊘</span>
           <h3>Ovaj profil je privatan</h3>
-          <p style={{ color: 'gray', textAlign: 'center', margin: '0 20px' }}>Zaprati ovaj profil da bi video/la njegove фотографије.</p>
+          <p style={{ color: 'gray', textAlign: 'center', margin: '0 20px' }}>Zaprati ovaj profil da bi video/la njegove fotografije.</p>
         </div>
       ) : (
         <div style={S.grid}>
@@ -602,12 +631,12 @@ function Profile() {
               </div>
 
               <div style={S.postRightFooter}>
-                <div style={{ marginBottom: '10px', fontSize: '30px', display: 'flex', alignItems: 'center' }}>
-                  <span onClick={lajkujObjavu} style={{ cursor: 'pointer', marginRight: '15px', userSelect: 'none', color: odabranaObjava.isLiked ? '#ed4956' : '#262626' }}>
+                <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', height: '30px' }}>
+                  <span onClick={lajkujObjavu} style={{ cursor: 'pointer', marginRight: '15px', userSelect: 'none', fontSize: '28px', color: odabranaObjava.isLiked ? '#ed4956' : '#262626', display: 'flex', alignItems: 'center' }}>
                     {odabranaObjava.isLiked ? '♥' : '♡'}
                   </span>
-                  <span style={{ cursor: 'default', userSelect: 'none', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    💬 <span style={{ fontSize: '16px' }}>{odabranaObjava.comments?.length || 0}</span>
+                  <span style={{ cursor: 'default', userSelect: 'none', fontSize: '26px', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                    💬 <span style={{ fontSize: '16px', marginTop: '-2px' }}>{odabranaObjava.comments?.length || 0}</span>
                   </span>
                 </div>
                 <div style={{ marginBottom: '10px' }}>
@@ -761,6 +790,9 @@ function Profile() {
                         <div style={{ color: 'gray', fontSize: '12px' }}>@{korisnik.username}</div>
                       </div>
                     </div>
+                    {tipProfila === 'moj' && (
+                      <button onClick={() => handleUkloniPratiocaIzListe(korisnik.id)} style={{...S.removeBtn, color: 'black'}}>Ukloni</button>
+                    )}
                   </div>
                 ))
               }
@@ -781,18 +813,20 @@ function Profile() {
               {ucitavamListe ? <p style={{textAlign:'center', color:'gray'}}>Učitavanje...</p>
                 : listaPratilaca.length === 0 ? <p style={{textAlign:'center', color:'gray'}}>Ne prati nikoga</p>
                 : listaPratilaca.map(korisnik => (
-                  <div
-                    key={korisnik.id}
-                    style={{ ...S.userRow, cursor: 'pointer' }}
-                    onClick={() => { setPrikaziPrati(false); otvoriProfil(korisnik); }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div key={korisnik.id} style={S.userRow}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flex: 1 }}
+                      onClick={() => { setPrikaziPrati(false); otvoriProfil(korisnik); }}
+                    >
                       <img src={korisnik.profile_image_url || "/slike/outfit.jpg"} alt="avatar" style={S.listAvatar} />
                       <div>
                         <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#262626' }}>{korisnik.first_name} {korisnik.last_name}</div>
                         <div style={{ color: 'gray', fontSize: '12px' }}>@{korisnik.username}</div>
                       </div>
                     </div>
+                    {tipProfila === 'moj' && (
+                      <button onClick={() => handleOtpratiIzListe(korisnik.id)} style={{...S.removeBtn, color: '#ed4956'}}>Otprati</button>
+                    )}
                   </div>
                 ))
               }

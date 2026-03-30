@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const getMyUsername = () => {
   const token = localStorage.getItem('token');
@@ -26,7 +27,7 @@ function MediaItem({ item, style }) {
 }
 
 // PostCard komponenta 
-function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis }) {
+function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis, onProfilClick }) {
   const [trenutnaSlikaIndex, setTrenutnaSlikaIndex] = useState(0);
   const [prikaziKomentare, setPrikaziKomentare] = useState(false);
   const [noviKomentar, setNoviKomentar] = useState('');
@@ -106,7 +107,11 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
 
       {/* Header */}
       <div style={headerStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+          onClick={() => onProfilClick(obj.user)}
+          title="Idi na profil"
+        >
           <img
             src={obj.user?.profile_image_url || '/slike/outfit.jpg'}
             alt="avatar"
@@ -156,6 +161,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
 
       {/* Sadržaj */}
       <div style={contentStyle}>
+        {/* Vraćeno originalno srce i komentar iz tvog koda */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '32px', marginBottom: '8px' }}>
           <span onClick={() => onLajk(obj)} style={{ cursor: 'pointer', userSelect: 'none' }}>
             {obj.isLiked ? '♥' : '♡'}
@@ -171,7 +177,13 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
 
         {/* opis */}
         <div style={{ fontSize: '14px', marginBottom: '8px' }}>
-          <strong>{obj.user?.username}</strong>{' '}
+          <strong 
+            style={{ cursor: 'pointer' }}
+            onClick={() => onProfilClick(obj.user)}
+            title="Idi na profil"
+          >
+            {obj.user?.username}
+          </strong>{' '}
           {izmenaOpisa ? (
             <span style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
               <input value={noviOpis} onChange={e => setNoviOpis(e.target.value)} style={editInputStyle} />
@@ -204,7 +216,13 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
                 ) : (
                   <>
                     <span style={{ fontSize: '14px' }}>
-                      <strong>{kom.username || `Korisnik #${kom.userId}`}</strong>{' '}{kom.content}
+                      <strong 
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => onProfilClick({ id: kom.userId, username: kom.username })}
+                        title="Idi na profil"
+                      >
+                        {kom.username || `Korisnik #${kom.userId}`}
+                      </strong>{' '}{kom.content}
                     </span>
                     {/* vlasnik komentara ili vlasnik objave vidi dugm */}
                     {(Number(kom.userId) === Number(myId) || Number(obj.userId) === Number(myId)) && (
@@ -243,6 +261,7 @@ function PostCard({ obj, myId, myUsername, onLajk, onObrisiObjavu, onSacuvajOpis
 
 // Timeline komponenta 
 function Timeline() {
+  const navigate = useNavigate();
   const [objave, setObjave] = useState([]);
   const [ucitavam, setUcitavam] = useState(true);
   const [greska, setGreska] = useState(null);
@@ -322,6 +341,16 @@ function Timeline() {
     } catch (err) { console.error(err); }
   };
 
+  const otvoriProfil = (user) => {
+    if (!user) return;
+    navigate('/profile', { state: { korisnik: {
+      id: user.id || user.userId, 
+      username: user.username,
+      fullName: `${user.first_name || user.firstName || ''} ${user.last_name || user.lastName || ''}`.trim(),
+      avatar: user.profile_image_url || user.avatar || ''
+    }}});
+  };
+
   if (ucitavam) return <div style={centerStyle}>Učitavanje feed-a...</div>;
   if (greska) return <div style={centerStyle}>{greska}</div>;
   if (objave.length === 0) return <div style={centerStyle}>Nema objava. Zaprati nekoga ili dodaj svoju prvu objavu!</div>;
@@ -337,6 +366,7 @@ function Timeline() {
           onLajk={handleLajk}
           onObrisiObjavu={handleObrisiObjavu}
           onSacuvajOpis={handleSacuvajOpis}
+          onProfilClick={otvoriProfil}
         />
       ))}
     </div>
