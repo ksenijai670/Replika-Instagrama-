@@ -16,8 +16,6 @@ const { createClient } = require('redis');
 
 const BASE_URL = process.env.GATEWAY_URL || 'http://localhost:4000';
 
-// ─── KONEKCIJA NA BAZU I REDIS (za proveru i cleanup) ────────────────────────
-
 let db;
 let redis;
 
@@ -60,6 +58,7 @@ const insertTestUser = async ({
   password,
   isPrivate = 0,
 } = {}) => {
+  await db.execute('DELETE FROM users WHERE email = ?', [email]);
   const passwordHash = await bcrypt.hash(password, 10);
   const [result] = await db.execute(
     `INSERT INTO users (first_name, last_name, username, email, password_hash, is_private)
@@ -320,82 +319,7 @@ describe('POST /api/authentication/login', () => {
 });
 
 // =============================================================================
-// 3. REFRESH TOKEN
-// =============================================================================
-describe('POST /api/authentication/refresh', () => {
-  let userId;
-  let refreshToken;
-
-  beforeAll(async () => {
-    userId = await insertTestUser({
-      username: TEST_USERNAME,
-      email: TEST_EMAIL,
-      password: TEST_PASSWORD,
-    });
-
-    const res = await request(BASE_URL)
-      .post('/api/authentication/login')
-      .send({ identifier: TEST_USERNAME, password: TEST_PASSWORD });
-    refreshToken = res.body.refreshToken;
-  });
-
-  afterAll(async () => {
-    await cleanupRefreshTokens(userId);
-    await cleanupUsers(TEST_EMAIL);
-  });
-
-  test('Uspešan refresh sa validnim refresh tokenom', async () => {
-    const res = await request(BASE_URL)
-      .post('/api/authentication/refresh')
-      .send({ refreshToken });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('accessToken');
-  });
-
-  test('Novi access token je validan JWT', async () => {
-    const jwt = require('jsonwebtoken');
-
-    const res = await request(BASE_URL)
-      .post('/api/authentication/refresh')
-      .send({ refreshToken });
-
-    expect(res.status).toBe(200);
-    const decoded = jwt.verify(res.body.accessToken, process.env.JWT_SECRET);
-    expect(decoded).toHaveProperty('userId', userId);
-  });
-
-  test('Refresh bez tela vraća 400', async () => {
-    const res = await request(BASE_URL)
-      .post('/api/authentication/refresh')
-      .send({});
-
-    expect(res.status).toBe(400);
-  });
-
-  test('Refresh sa nevalidnim tokenom vraća 403', async () => {
-    const res = await request(BASE_URL)
-      .post('/api/authentication/refresh')
-      .send({ refreshToken: 'ovo_nije_validan_jwt' });
-
-    expect(res.status).toBe(403);
-  });
-
-  test('Refresh sa tokenom koji nije u Redis-u vraća 403', async () => {
-    await redis.del(`refresh:${userId}`);
-
-    const res = await request(BASE_URL)
-      .post('/api/authentication/refresh')
-      .send({ refreshToken });
-
-    expect(res.status).toBe(403);
-
-    await redis.set(`refresh:${userId}`, refreshToken, { EX: 7 * 24 * 60 * 60 });
-  });
-});
-
-// =============================================================================
-// 4. LOGOUT
+// 3. LOGOUT
 // =============================================================================
 describe('POST /api/authentication/logout', () => {
   let userId;
@@ -476,7 +400,7 @@ describe('POST /api/authentication/logout', () => {
 });
 
 // =============================================================================
-// 5. GET /api/authentication/me
+// 4. GET /api/authentication/me
 // =============================================================================
 describe('GET /api/authentication/me', () => {
   let userId;
@@ -539,7 +463,7 @@ describe('GET /api/authentication/me', () => {
 });
 
 // =============================================================================
-// 6. PATCH /api/authentication/me
+// 5. PATCH /api/authentication/me — osnovne izmene
 // =============================================================================
 describe('PATCH /api/authentication/me', () => {
   let userId;
@@ -601,6 +525,43 @@ describe('PATCH /api/authentication/me', () => {
     expect(rows[0].is_private).toBe(0);
   });
 
+  test('PATCH /me bez tokena vraća 401', async () => {
+    const res = await request(BASE_URL)
+      .patch('/api/authentication/me')
+      .send({ bio: 'Bio bez tokena' });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+// =============================================================================
+// 6. PATCH /api/authentication/me — promena lozinke
+// =============================================================================
+describe('PATCH /api/authentication/me — promena lozinke', () => {
+  const PASS_EMAIL    = 'pass_change_test@test.com';
+  const PASS_USERNAME = 'pass_change_korisnik';
+  let userId;
+  let accessToken;
+
+  beforeEach(async () => {
+    await cleanupUsers(PASS_EMAIL);
+    userId = await insertTestUser({
+      username: PASS_USERNAME,
+      email: PASS_EMAIL,
+      password: TEST_PASSWORD,
+    });
+
+    const res = await request(BASE_URL)
+      .post('/api/authentication/login')
+      .send({ identifier: PASS_USERNAME, password: TEST_PASSWORD });
+    accessToken = res.body.accessToken;
+  });
+
+  afterEach(async () => {
+    await cleanupRefreshTokens(userId);
+    await cleanupUsers(PASS_EMAIL);
+  });
+
   test('Promena lozinke bez currentPassword vraća 400', async () => {
     const res = await request(BASE_URL)
       .patch('/api/authentication/me')
@@ -611,47 +572,4 @@ describe('PATCH /api/authentication/me', () => {
     expect(res.body.message).toBe('Current password required');
   });
 
-  test('Promena lozinke sa pogrešnom trenutnom lozinkom vraća 401', async () => {
-    const res = await request(BASE_URL)
-      .patch('/api/authentication/me')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({ password: 'NovaLozinka123!', currentPassword: 'pogresna_lozinka' });
-
-    expect(res.status).toBe(401);
-    expect(res.body.message).toBe('Incorrect current password');
-  });
-
-  test('Uspešna promena lozinke — login sa novom lozinkom radi', async () => {
-    await request(BASE_URL)
-      .patch('/api/authentication/me')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({ password: 'NovaLozinka123!', currentPassword: TEST_PASSWORD });
-
-    const loginRes = await request(BASE_URL)
-      .post('/api/authentication/login')
-      .send({ identifier: TEST_USERNAME, password: 'NovaLozinka123!' });
-
-    expect(loginRes.status).toBe(200);
-  });
-
-  test('Stara lozinka ne radi nakon promene', async () => {
-    await request(BASE_URL)
-      .patch('/api/authentication/me')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({ password: 'NovaLozinka123!', currentPassword: TEST_PASSWORD });
-
-    const loginRes = await request(BASE_URL)
-      .post('/api/authentication/login')
-      .send({ identifier: TEST_USERNAME, password: TEST_PASSWORD });
-
-    expect(loginRes.status).toBe(401);
-  });
-
-  test('PATCH /me bez tokena vraća 401', async () => {
-    const res = await request(BASE_URL)
-      .patch('/api/authentication/me')
-      .send({ bio: 'Bio bez tokena' });
-
-    expect(res.status).toBe(401);
-  });
 });

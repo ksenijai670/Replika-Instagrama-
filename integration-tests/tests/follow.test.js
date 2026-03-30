@@ -49,6 +49,7 @@ afterAll(async () => {
 // ─── HELPER FUNKCIJE ──────────────────────────────────────────────────────────
 
 const insertAuthUser = async ({ firstName = 'Test', lastName = 'Korisnik', username, email, password, isPrivate = 0 }) => {
+  await authDb.execute('DELETE FROM users WHERE email = ?', [email]);
   const hash = await bcrypt.hash(password, 10);
   const [result] = await authDb.execute(
     `INSERT INTO users (first_name, last_name, username, email, password_hash, is_private) VALUES (?, ?, ?, ?, ?, ?)`,
