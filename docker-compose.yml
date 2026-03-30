@@ -67,7 +67,7 @@ services:
     volumes:
       - mysql_follow_data:/var/lib/mysql
       - ./follow-service/sql/baza_followservice.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./follow-service/sql/baza_followservice_primeri.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      #- ./follow-service/sql/baza_followservice_primeri.sql:/docker-entrypoint-initdb.d/02-seed.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pfollow_service_db_password"]
       interval: 10s

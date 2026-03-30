@@ -18,6 +18,37 @@ test.describe('Login UI', () => {
     await expect(page).toHaveURL(/.*\/register/);
   });
 
+  test('korisnik moze da unese kredencijale u login formu', async ({ page }) => {
+    await page.goto('/login');
+
+    const identifierInput = page.getByPlaceholder('Korisničko ime ili email');
+    const passwordInput = page.getByPlaceholder('Lozinka');
+
+    await identifierInput.fill('ana123');
+    await passwordInput.fill('test123');
+
+    await expect(identifierInput).toHaveValue('ana123');
+    await expect(passwordInput).toHaveValue('test123');
+  });
+
+  test('login dugme je vidljivo i omoguceno na login stranici', async ({ page }) => {
+    await page.goto('/login');
+
+    const loginButton = page.getByRole('button', { name: 'Prijavi se' });
+
+    await expect(loginButton).toBeVisible();
+    await expect(loginButton).toBeEnabled();
+  });
+
+  test('link Registrujte se ostaje vidljiv nakon unosa podataka u formu', async ({ page }) => {
+    await page.goto('/login');
+
+    await page.getByPlaceholder('Korisničko ime ili email').fill('ana123');
+    await page.getByPlaceholder('Lozinka').fill('test123');
+
+    await expect(page.getByRole('link', { name: 'Registrujte se' })).toBeVisible();
+  });
+
   test('uspesan login cuva token i refresh token u localStorage', async ({ page }) => {
     await page.route('http://localhost:4000/api/authentication/login', async route => {
       await route.fulfill({

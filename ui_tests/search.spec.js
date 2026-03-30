@@ -27,6 +27,28 @@ test.describe('Search UI', () => {
     ).toBeVisible();
   });
 
+  test('korisnik moze da unese tekst u search polje', async ({ page }) => {
+    await page.goto('/search');
+
+    const searchInput = page.getByPlaceholder('Pretraži po imenu ili korisničkom imenu...');
+
+    await searchInput.fill('ana');
+
+    await expect(searchInput).toHaveValue('ana');
+  });
+
+  test('za jedno slovo ne prikazuje rezultate nego poruku za minimum 2 slova', async ({ page }) => {
+    await page.goto('/search');
+
+    await page
+      .getByPlaceholder('Pretraži po imenu ili korisničkom imenu...')
+      .fill('a');
+
+    await expect(
+      page.getByText('Unesite bar 2 slova za pretragu...')
+    ).toBeVisible();
+  });
+
   test('prikazuje rezultate pretrage kada backend vrati korisnike', async ({ page }) => {
     await page.route('http://localhost:4000/api/profile/search?*', async route => {
       await route.fulfill({

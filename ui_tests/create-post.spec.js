@@ -59,6 +59,32 @@ test.describe('Create Post UI', () => {
     await expect(page.locator('img[alt="Preview 0"]')).toBeVisible();
   });
 
+  test('dodavanje vise slika prikazuje vise preview elemenata', async ({ page }) => {
+    await page.goto('/create');
+
+    await page.locator('input[type="file"]').setInputFiles([
+      {
+        name: 'slika1.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('fake-image-content-1')
+      },
+      {
+        name: 'slika2.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('fake-image-content-2')
+      },
+      {
+        name: 'slika3.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('fake-image-content-3')
+      }
+    ]);
+
+    await expect(page.locator('img[alt="Preview 0"]')).toBeVisible();
+    await expect(page.locator('img[alt="Preview 1"]')).toBeVisible();
+    await expect(page.locator('img[alt="Preview 2"]')).toBeVisible();
+  });
+
   test('uklanjanje slike brise preview', async ({ page }) => {
     await page.goto('/create');
 
@@ -73,6 +99,30 @@ test.describe('Create Post UI', () => {
     await page.getByRole('button', { name: '×' }).click();
 
     await expect(page.locator('img[alt="Preview 0"]')).toHaveCount(0);
+  });
+
+  test('uklanjanje jedne slike ne brise ostale preview slike', async ({ page }) => {
+    await page.goto('/create');
+
+    await page.locator('input[type="file"]').setInputFiles([
+      {
+        name: 'slika1.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('fake-image-content-1')
+      },
+      {
+        name: 'slika2.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('fake-image-content-2')
+      }
+    ]);
+
+    await expect(page.locator('img[alt="Preview 0"]')).toBeVisible();
+    await expect(page.locator('img[alt="Preview 1"]')).toBeVisible();
+
+    await page.getByRole('button', { name: '×' }).first().click();
+
+    await expect(page.locator('img[alt="Preview 0"]')).toHaveCount(1);
   });
 
   test('prikazuje alert kada korisnik doda vise od 20 fajlova', async ({ page }) => {
@@ -93,6 +143,69 @@ test.describe('Create Post UI', () => {
     await page.locator('input[type="file"]').setInputFiles(files);
 
     await expect.poll(() => dialogMessage).toBe('Maksimalan broj fajlova po objavi je 20!');
+  });
+
+  test('neispravan token prikazuje poruku da korisnik mora biti ulogovan', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'neispravan-token');
+    });
+
+    let dialogMessage = '';
+
+    page.on('dialog', async dialog => {
+      dialogMessage = dialog.message();
+      await dialog.accept();
+    });
+
+    await page.goto('/create');
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'slika1.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fake-image-content')
+    });
+
+    await page.getByRole('button', { name: 'Objavi' }).click();
+
+    await expect.poll(() => dialogMessage).toBe('Morate biti ulogovani da biste objavili post!');
+  });
+
+  test('tokom objavljivanja dugme prikazuje tekst Objavljivanje...', async ({ page }) => {
+    await page.route('http://localhost:4000/api/posts', async route => {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Post created' })
+      });
+    });
+
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+    });
+
+    await page.goto('/create');
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'slika1.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fake-image-content')
+    });
+
+    await page.getByRole('button', { name: 'Objavi' }).click();
+
+    await expect(page.getByRole('button', { name: 'Objavljivanje...' })).toBeVisible();
+  });
+
+  test('korisnik moze da unese opis objave', async ({ page }) => {
+    await page.goto('/create');
+
+    const descriptionInput = page.getByPlaceholder('Dodaj opis ༘˚⋆𐙚｡⋆𖦹.✧˚');
+
+    await descriptionInput.fill('Ovo je moj opis objave');
+
+    await expect(descriptionInput).toHaveValue('Ovo je moj opis objave');
   });
 
   test('uspesno objavljivanje salje post i resetuje formu', async ({ page }) => {
