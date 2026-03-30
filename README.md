@@ -152,9 +152,9 @@ Merge on Main: Svaki komit na main grani pokreće jedinične testove. Ukoliko te
 
 ## 8. Članovi tima i uloge
 - Ksenija Živković (658-2022) - Frontend Engineer (Zadužena za razvoj grafičkog korisničkog interfejsa u React-u, povezivanje sa Gateway-em i pisanje Frontend Unit testova).
-- Aleksa Milenković (647-2021) - Backend Engineer A (Zadužen za razvoj biznis logike (Auth, Profile servisi), pisanje Unit testova, kao i DevOps aktivnosti: implementaciju CI/CD toka, Dockerfile i docker-compose fajlova).
+- Aleksa Milenković (647-2021) - Backend Engineer A (Zadužen za razvoj biznis logike (Auth, Profile servisi i Feed servisi), pisanje Unit testova, kao i DevOps aktivnosti: implementaciju CI/CD toka, Dockerfile i docker-compose fajlova).
 - Emilija Mladenović (602-2022) - Backend Engineer B (Zadužena za razvoj biznis logike (Post, Interactions servisi), definisanje modela podataka, pisanje Unit testova i API integracionih testova).
-- Ana Urukalo (601-2022) - Backend Engineer C (Zadužena za razvoj biznis logike (Follow, Feed servisi), definisanje modela podataka, pisanje Unit testova i UI integracionih testova).	
+- Ana Urukalo (601-2022) - Backend Engineer C (Zadužena za razvoj biznis logike (Follow, API Gateway), definisanje modela podataka, pisanje Unit testova i UI integracionih testova).	
 
 (˶ᵔ ᵕ ᵔ˶)
 
