@@ -13,10 +13,10 @@ Sistem je podeljen na više nezavisnih mikroservisa. Svi zahtevi sa klijentske s
 | Servis | Kontejner | Eksterni Port (Host) | Interni Port (Docker) | Opis |
 | :--- | :--- | :--- | :--- | :--- |
 | **API Gateway** | `gateway` | **4000** | 4000 | Ulazna tačka za sve klijentske zahteve |
-| **Frontend** | `react-app` | **3000** | - | React korisnički interfejs |
+| **Frontend** | `react-app` | **3000** | 4000 | React korisnički interfejs |
 | **Authentication** | `authentication` | - | 3001 | Servis za prijavu, registraciju i JWT tokene |
 | **Profile** | `profile` | - | 3010 | Servis za upravljanje korisničkim profilima |
-| **Follow** | `follow-service` | **3004** | 3004 | Servis za praćenje (Followers/Following) |
+| **Follow** | `follow-service` | - | 3004 | Servis za praćenje (Followers/Following) |
 | **Post** | `post-service` | - | 3006 | Servis za kreiranje i učitavanje objava |
 | **Interactions**| `interactions-service` | - | 3005 | Servis za lajkove, komentare itd. |
 | **Feed** | `feed` | - | 3015 | Servis za generisanje početne strane (Feed-a) |
