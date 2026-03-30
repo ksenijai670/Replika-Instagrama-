@@ -28,9 +28,9 @@ app.delete('/followers/remove', FollowController.removeFollower);
 
 // ─── Block ────────────────────────────────────────────────
 app.post('/block', FollowController.blockUser);
-app.delete('/block', FollowController.unblockUser);           // NEW: unblock
-app.delete('/block/unblock', FollowController.unblockUser);   // NEW: alias
-app.get('/block/blocked-list', FollowController.getBlockedList); // NEW: list
+app.delete('/block', FollowController.unblockUser);           // unblock
+app.delete('/block/unblock', FollowController.unblockUser);   // alias
+app.get('/block/blocked-list', FollowController.getBlockedList); //  list
 app.get('/block-status', FollowController.getBlockStatus);
 
 // ─── Stats / Relationship ─────────────────────────────────
