@@ -21,6 +21,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject",
     "e2e": "playwright test ui_tests",
     "e2e:headed": "playwright test ui_tests --headed"
@@ -42,6 +43,19 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js",
+      "!src/**/*.test.{js,jsx}"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 0
+      }
+    }
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2"
