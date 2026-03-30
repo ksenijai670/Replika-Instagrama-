@@ -41,31 +41,31 @@ Pristup većini stranica je zaštićen (`ProtectedRoute`) i zahteva validan JWT 
 
 | Putanja (Path) | Komponenta | Pristup | Opis |
 | :--- | :--- | :--- | :--- |
-| `/login` | `Login` | 🟢 Javna | Stranica za prijavu postojećih korisnika |
-| `/register` | `Register` | 🟢 Javna | Stranica za kreiranje novog naloga |
-| `/` | `Timeline` | 🔒 Zaštićena | Početna strana (Feed) sa objavama praćenih korisnika |
-| `/profile` | `Profile` | 🔒 Zaštićena | Korisnički profil (prikaz slika, pratilaca i objava) |
-| `/create` | `CreatePost` | 🔒 Zaštićena | Forma za kreiranje i postavljanje nove objave |
-| `/search` | `Search` | 🔒 Zaštićena | Pretraga drugih korisnika mreže |
-| `/notifications` | `Notifications` | 🔒 Zaštićena | Pregled obaveštenja (lajkovi, komentari, zapraćivanja) |
+| `/login` | `Login` |  Javna | Stranica za prijavu postojećih korisnika |
+| `/register` | `Register` |  Javna | Stranica za kreiranje novog naloga |
+| `/` | `Timeline` |  Zaštićena | Početna strana (Feed) sa objavama praćenih korisnika |
+| `/profile` | `Profile` |  Zaštićena | Korisnički profil (prikaz slika, pratilaca i objava) |
+| `/create` | `CreatePost` |  Zaštićena | Forma za kreiranje i postavljanje nove objave |
+| `/search` | `Search` |  Zaštićena | Pretraga drugih korisnika mreže |
+| `/notifications` | `Notifications` |  Zaštićena | Pregled obaveštenja (lajkovi, komentari, zapraćivanja) |
 
 2. API Gateway Rute (Backend)
 Svi pozivi ka serveru idu preko API Gateway-a (Port `4000`), koji preusmerava zahtev do odgovarajućeg mikroservisa. Skoro sve rute prolaze kroz autentifikacioni middleware.
 
 | API Endpoint | Preusmerava na (Servis) | Pristup | Limiter |
 | :--- | :--- | :--- | :--- |
-| `GET /health` | *Gateway* (Lokalno) | 🟢 Javni | Globalni |
-| `POST /api/authentication/register`| `Authentication` (`/register`) | 🟢 Javni | Da (Auth) |
-| `POST /api/authentication/login` | `Authentication` (`/login`) | 🟢 Javni | Da (Auth) |
-| `POST /api/authentication/logout` | `Authentication` (`/logout`) | 🔒 Zaštićen | Globalni |
-| `GET /api/authentication/me` | `Authentication` (`/me`) | 🔒 Zaštićen | Globalni |
-| `* /api/profile/*` | `Profile` | 🔒 Zaštićen | Globalni |
-| `* /api/follow/*` | `Follow` (`/follow`) | 🔒 Zaštićen | Globalni |
-| `* /api/unfollow/*` | `Follow` (`/unfollow`)| 🔒 Zaštićen | Globalni |
-| `* /api/block/*` | `Follow` (`/block`) | 🔒 Zaštićen | Globalni |
-| `* /api/posts/*` | `Post` (`/posts`) | 🔒 Zaštićen | Globalni |
-| `* /api/interactions/*` | `Interactions` | 🔒 Zaštićen | Globalni |
-| `* /api/feed/*` | `Feed` (`/feed`) | 🔒 Zaštićen | Globalni |
+| `GET /health` | *Gateway* (Lokalno) |  Javni | Globalni |
+| `POST /api/authentication/register`| `Authentication` (`/register`) |  Javni | Da (Auth) |
+| `POST /api/authentication/login` | `Authentication` (`/login`) |  Javni | Da (Auth) |
+| `POST /api/authentication/logout` | `Authentication` (`/logout`) |  Zaštićen | Globalni |
+| `GET /api/authentication/me` | `Authentication` (`/me`) |  Zaštićen | Globalni |
+| `* /api/profile/*` | `Profile` |  Zaštićen | Globalni |
+| `* /api/follow/*` | `Follow` (`/follow`) |  Zaštićen | Globalni |
+| `* /api/unfollow/*` | `Follow` (`/unfollow`)|  Zaštićen | Globalni |
+| `* /api/block/*` | `Follow` (`/block`) |  Zaštićen | Globalni |
+| `* /api/posts/*` | `Post` (`/posts`) |  Zaštićen | Globalni |
+| `* /api/interactions/*` | `Interactions` |  Zaštićen | Globalni |
+| `* /api/feed/*` | `Feed` (`/feed`) |  Zaštićen | Globalni |
 
 ---
 
@@ -102,6 +102,7 @@ Aplikacija je u potpunosti kontejnerizovana i pokreće se putem docker-compose a
    I frontend: npm start
 4. Aplikacija će biti dostupna u web pregledaču na adresi:
    http://localhost:3000
+
 (Napomena: MinIO će automatski kreirati posts-media bucket prilikom prvog pokretanja Post servisa i dodeliti mu Public polisu pristupa kako bi slike bile vidljive klijentima.)
 
 ---
@@ -118,16 +119,26 @@ Merge on Main: Svaki komit na main grani pokreće jedinične testove. Ukoliko te
 - Frontend sadrži UI jedinične testove napisane pomoću Jest i React Testing Library (pokrivenost preko 10%).
 - Implementirani su API integracioni testovi (Backend) i UI integracioni testovi.
 
-*Lokalno pokretanje testova:
-- Pokretanje svih Backend Unit testova: npm test
-- Pokretanje API Integracionih testova(iz integration-tests): npm run test:integration
-- Pokretanje Frontend UI testova: npm run e2e 
+*Lokalno pokretanje testova: 
+- Pokretanje svih Backend i Frontend Unit testova:
+  1. npm install
+  2. npm test
+
+- Pokretanje API Integracionih testova(iz integration-tests):
+  1. npm install
+  2. npm test
+   
+- Pokretanje UI Integracionih testova:
+  1. npm install
+  2. npx playwright install
+  3. (npm install -D @playwright/test)
+  4. npm run e2e
 
 ---
 
 ## 6. Dijagram
 
-(ovde ide slika koju budemo napravili)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+<img width="1453" height="1204" alt="dijagram ak drawio" src="https://github.com/user-attachments/assets/bca3ec38-094f-40aa-a3ba-1ed674dd5cf9" />
 
 ---
 
