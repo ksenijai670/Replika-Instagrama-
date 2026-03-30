@@ -40,9 +40,10 @@ function Profile() {
   const [ucitavamPodatke, setUcitavamPodatke] = useState(false);
   const [ucitavamListe, setUcitavamListe] = useState(false);
 
+  // Dodat postsCount u state
   const [mojProfil, setMojProfil] = useState({
     username: '', firstName: '', lastName: '', bio: '', avatar: '',
-    followersCount: 0, followingCount: 0, isPrivate: false
+    followersCount: 0, followingCount: 0, postsCount: 0, isPrivate: false
   });
   const [listaPratilaca, setListaPratilaca] = useState([]);
   const [userPostsData, setUserPostsData] = useState([]);
@@ -95,6 +96,7 @@ function Profile() {
           avatar:         user.profile_image_url || '',
           followersCount: user.followers_count   || 0,
           followingCount: user.following_count   || 0,
+          postsCount:     user.posts_count       || (user.posts ? user.posts.length : 0),
           isPrivate:      !!user.is_private,
         });
         const posts = user.posts || [];
@@ -107,7 +109,14 @@ function Profile() {
           setTipProfila(user.is_private ? 'privatni' : 'javni');
         }
 
-        if (user.is_following) setStatusPracenja('prati');
+        // Poboljšana logika za čitanje statusa (podržava PENDING i is_requested)
+        if (user.follow_status === 'pending' || user.follow_status === 'PENDING' || user.is_requested) {
+          setStatusPracenja('poslat_zahtev');
+        } else if (user.is_following) {
+          setStatusPracenja('prati');
+        } else {
+          setStatusPracenja('ne_prati');
+        }
       }
     } catch (err) { console.error(err); }
     finally { setUcitavamPodatke(false); }
@@ -122,7 +131,7 @@ function Profile() {
     bio:       mojProfil.bio,
     followers: mojProfil.followersCount,
     following: mojProfil.followingCount,
-    posts:     userPostsData.length,
+    posts:     mojProfil.postsCount, // Vuče iz state-a
     avatar:    mojProfil.avatar    || pretrazeniKorisnik?.avatar   || ''
   };
 
@@ -383,7 +392,6 @@ function Profile() {
   const handleUkloniPratiocaIzListe = async (followerId) => {
     if (!window.confirm("Da li ste sigurni da želite da uklonite ovog pratioca?")) return;
     try {
-      // NAPOMENA: Ovde gađamo /api/followers/remove kako je definisano u bekind ruti
       const res = await fetch('http://localhost:4000/api/remove', {
         method: 'DELETE',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -461,7 +469,8 @@ function Profile() {
         }
         <div style={S.statsContainer}>
           <div style={S.statItem}>
-            <strong>{mozeDaVidiSlike ? userPostsData.length : 0}</strong>
+            {/* OVO JE ISPRAVLJENO - BROJ OBJAVA UVEK VIDLJIV */}
+            <strong>{userProfile.posts}</strong>
             <span style={S.statLabel}>objava</span>
           </div>
           <div style={{...S.statItem, cursor: 'pointer'}} onClick={() => mozeDaVidiSlike && fetchPratioci()}>
