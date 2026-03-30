@@ -38,6 +38,31 @@ test.describe('Register UI', () => {
     expect(dialogMessage).toBe('Fajl je prevelik! Maksimalna veličina je 50MB.');
   });
 
+  test('korisnik moze da unese podatke u register formu', async ({ page }) => {
+    await page.goto('/register');
+
+    await page.getByPlaceholder('Ime i prezime').fill('Ana Anic');
+    await page.getByPlaceholder('Korisničko ime (Obavezno)').fill('ana123');
+    await page.getByPlaceholder('Email (Obavezno)').fill('ana@test.com');
+    await page.getByPlaceholder('Lozinka (Obavezno)').fill('test123');
+    await page.getByPlaceholder('Opis profila (Opciono)').fill('Opis profila');
+
+    await expect(page.getByPlaceholder('Ime i prezime')).toHaveValue('Ana Anic');
+    await expect(page.getByPlaceholder('Korisničko ime (Obavezno)')).toHaveValue('ana123');
+    await expect(page.getByPlaceholder('Email (Obavezno)')).toHaveValue('ana@test.com');
+    await expect(page.getByPlaceholder('Lozinka (Obavezno)')).toHaveValue('test123');
+    await expect(page.getByPlaceholder('Opis profila (Opciono)')).toHaveValue('Opis profila');
+  });
+
+  test('register dugme je vidljivo i omoguceno', async ({ page }) => {
+    await page.goto('/register');
+
+    const registerButton = page.getByRole('button', { name: 'Registruj se' });
+
+    await expect(registerButton).toBeVisible();
+    await expect(registerButton).toBeEnabled();
+  });
+
   test('uspesna registracija vodi na login stranicu', async ({ page }) => {
     await page.route('http://localhost:4000/api/authentication/register', async route => {
       await route.fulfill({

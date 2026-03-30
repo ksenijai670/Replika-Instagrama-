@@ -263,6 +263,120 @@ test.describe('Timeline UI', () => {
     await expect(page.getByText('Moja objava')).toHaveCount(0);
   });
 
+  test('prikazuje poruku ucitavanja dok se feed ucitava', async ({ page }) => {
+    await page.route('http://localhost:4000/api/feed', async route => {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ posts: [] })
+      });
+    });
+
+    await page.goto('/');
+
+    await expect(page.getByText('Učitavanje feed-a...')).toBeVisible();
+  });
+
+  test('vlasnik objave moze da izmeni opis objave', async ({ page }) => {
+    await page.route('http://localhost:4000/api/feed', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          posts: [
+            {
+              id: 1,
+              userId: 123,
+              caption: 'Stari opis',
+              likes_count: 0,
+              isLiked: false,
+              comments: [],
+              user: {
+                username: 'ana123',
+                profile_image_url: ''
+              },
+              media: [
+                {
+                  mediaType: 'image',
+                  mediaUrl: 'https://example.com/post1.jpg'
+                }
+              ]
+            }
+          ]
+        })
+      });
+    });
+
+    await page.route('http://localhost:4000/api/posts/1/caption', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true })
+      });
+    });
+
+    await page.goto('/');
+
+    await page.getByRole('button', { name: '•••' }).click();
+    await page.getByRole('button', { name: 'Izmeni opis' }).click();
+
+    const input = page.locator('input').filter({ has: page.locator('..') }).first();
+    await input.fill('Novi opis');
+
+    await page.getByRole('button', { name: '✓' }).click();
+
+    await expect(page.getByText('Novi opis')).toBeVisible();
+  });
+
+  test('uklanjanje lajka smanjuje broj lajkova', async ({ page }) => {
+    await page.route('http://localhost:4000/api/feed', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          posts: [
+            {
+              id: 1,
+              userId: 999,
+              caption: 'Vec lajkovana objava',
+              likes_count: 4,
+              isLiked: true,
+              comments: [],
+              user: {
+                username: 'marko99',
+                profile_image_url: ''
+              },
+              media: [
+                {
+                  mediaType: 'image',
+                  mediaUrl: 'https://example.com/post1.jpg'
+                }
+              ]
+            }
+          ]
+        })
+      });
+    });
+
+    await page.route('http://localhost:4000/api/interactions/posts/1/likes', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true })
+      });
+    });
+
+    await page.goto('/');
+
+    await expect(page.getByText('4 sviđanja')).toBeVisible();
+
+    await page.getByText('♥').click();
+
+    await expect(page.getByText('3 sviđanja')).toBeVisible();
+    await expect(page.getByText('♡')).toBeVisible();
+  });
+
   test('prikazuje gresku kada feed ne moze da se ucita', async ({ page }) => {
     await page.route('http://localhost:4000/api/feed', async route => {
       await route.fulfill({
